@@ -19,7 +19,7 @@ const LINKS = [
   { href: "/#product", label: "Product" },
   { href: "/#how-it-works", label: "How it works" },
   { href: "/benchmark", label: "Benchmark" },
-  { href: "/#methodology", label: "Methodology" },
+  { href: "/docs", label: "Docs" },
   { href: "/#pricing", label: "Pricing" },
 ];
 
