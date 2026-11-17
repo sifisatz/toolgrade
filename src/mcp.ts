@@ -62,6 +62,7 @@ export async function openSession(server: ServerSpec): Promise<McpSession> {
 
   try {
     await client.connect(transport);
+    if (!isStdio(server) && server.reset) await callTool(client, server.reset.tool, server.reset.args);
     const tools = await listAllTools(client);
     return {
       tools,

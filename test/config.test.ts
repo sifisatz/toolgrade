@@ -24,6 +24,11 @@ describe("parseSuite", () => {
     expect(isStdio(s.server)).toBe(false);
   });
 
+  it("accepts an optional reset hook on an HTTP server", () => {
+    const s = parseSuite({ ...minimal, server: { url: "http://localhost:3000/mcp", reset: { tool: "reset_db" } } }, "/x");
+    expect(!isStdio(s.server) && s.server.reset).toEqual({ tool: "reset_db", args: {} });
+  });
+
   it("rejects unknown assertion types with a readable message", () => {
     const bad = { ...minimal, tasks: [{ id: "t1", prompt: "hi", assert: [{ type: "vibes" }] }] };
     expect(() => parseSuite(bad, "/x")).toThrow(/Invalid suite file/);

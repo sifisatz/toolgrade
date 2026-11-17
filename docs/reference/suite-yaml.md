@@ -125,14 +125,19 @@ server:
   headers:
     Authorization: Bearer test-token-123
     X-Tenant-Id: test-tenant
+  reset:
+    tool: reset_db          # called once per session, right after connecting
+    args: { tenant: test-tenant }
 ```
 
 | Field | Required | Description |
 |---|---|---|
 | `url` | ✅ | Full URL to the MCP endpoint |
 | `headers` | — | HTTP headers to include in every request |
+| `reset.tool` | — | Name of a tool ToolGrade calls right after connecting, before every trial, to reset server-side state |
+| `reset.args` | — | Arguments passed to the reset tool call |
 
-> **Note:** With HTTP servers, state is *not* automatically isolated between trials. If your tests are stateful, your server must handle test isolation itself (e.g., via a `reset` tool or per-request tenant isolation).
+> **Note:** With HTTP servers, state is *not* automatically isolated between trials the way stdio servers are. Set `reset` to a tool that clears your server's state (e.g. truncates a test database or resets a per-tenant fixture); without it, `state` assertions can see leftovers from an earlier trial.
 
 ---
 

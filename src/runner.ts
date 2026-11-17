@@ -276,17 +276,18 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
 
 /**
  * Only stdio servers get a fresh sandboxed process per trial (see mcp.ts). An HTTP server's state
- * carries over between trials, so `state` assertions can see leftovers from an earlier trial and
- * silently misreport pass/fail - warn rather than let that go unnoticed.
+ * carries over between trials unless the suite declares a `reset` tool, so `state` assertions can
+ * see leftovers from an earlier trial and silently misreport pass/fail - warn rather than let that
+ * go unnoticed.
  */
 function warnIfUnisolatedState(suite: Suite, tasks: TaskSpec[], trials: number): void {
-  if (isStdio(suite.server) || trials <= 1) return;
+  if (isStdio(suite.server) || trials <= 1 || suite.server.reset) return;
   const hasState = tasks.some((t) => t.assert.some((a) => a.type === "state"));
   if (!hasState) return;
   process.stderr.write(
     "toolgrade: warning: this suite uses an HTTP MCP server with state assertions and more than one trial. " +
       "Unlike stdio servers, HTTP servers are not sandboxed per trial - state may leak between trials unless " +
-      "the server itself resets or isolates state per session.\n",
+      "you configure server.reset or the server itself isolates state per session.\n",
   );
 }
 

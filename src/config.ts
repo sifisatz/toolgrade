@@ -15,6 +15,13 @@ const StdioServer = z.object({
 const HttpServer = z.object({
   url: z.url(),
   headers: z.record(z.string(), z.string()).default({}),
+  /** Tool called once per session, right after connecting, to reset server-side state for the new trial. */
+  reset: z
+    .object({
+      tool: z.string(),
+      args: z.record(z.string(), z.unknown()).default({}),
+    })
+    .optional(),
 });
 
 const ServerConfig = z.union([StdioServer, HttpServer]);
