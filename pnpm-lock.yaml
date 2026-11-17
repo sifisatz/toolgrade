@@ -200,6 +200,9 @@ importers:
 
   benchmark:
     dependencies:
+      '@modelcontextprotocol/server-everything':
+        specifier: 2.3.0
+        version: 2.3.0
       '@modelcontextprotocol/server-filesystem':
         specifier: 2.3.0
         version: 2.3.0
@@ -1313,6 +1316,12 @@ packages:
     resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
     engines: {node: '>=20'}
 
+  '@modelcontextprotocol/node@2.1.2':
+    resolution: {integrity: sha512-IIcIqBpr6NCQQs5DgJTgvbSOAw+3iaR/uquqg+e0nXCdudfjPg/80x0TseUnQx14AUAtE4fsJCEpJKPyb6WPVA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@modelcontextprotocol/server': ^2.4.0
+
   '@modelcontextprotocol/sdk@1.32.2':
     resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
     engines: {node: '>=18'}
@@ -1323,10 +1332,25 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
+  '@modelcontextprotocol/server-everything@2.3.0':
+    resolution: {integrity: sha512-GrmmVZxdvy2k7zjM4W0ROAs8Dot8+FrBacGHNI83+c5dePgQORErksMLg0g3BZsxiVLZ7qExdu/QOY2wBbD9Rw==}
+    engines: {node: '>=24'}
+    hasBin: true
+
   '@modelcontextprotocol/server-filesystem@2.3.0':
     resolution: {integrity: sha512-dnwDFqYi2Q3VbFDnVOUme4+81CzwHBj3OKeYEgZ6UkBp7rWSm5OKiidemgIF0kkt5AyAi6mHsqx0cfTZBP1DJQ==}
     engines: {node: '>=24'}
     hasBin: true
+
+  '@modelcontextprotocol/server-legacy@2.4.0':
+    resolution: {integrity: sha512-xWq1YTZiLZltEXp/NJhsW7IvpuowrapEFuriAz3a86CIwMnt7+r8EaG/7xtWi7aqLzhtplOJJffUE5YIcUT+Aw==}
+    engines: {node: '>=20'}
+    deprecated: This package is a frozen copy of v1's SSE transport and OAuth Authorization Server helpers for migration purposes only. Use StreamableHTTP from @modelcontextprotocol/server and a dedicated OAuth server in production. Will not receive new features.
+    peerDependencies:
+      express: ^4.18.0 || ^5.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
 
   '@modelcontextprotocol/server-memory@2.1.1':
     resolution: {integrity: sha512-MbjK6Pi+uGU3EwGk9HyCp/1zKwnuB/QMQ/wQOlswaLgHzIeeCuyVdWUTWg0hTGBk+n+3l5la5a4egbt8YuoVAg==}
@@ -4478,6 +4502,12 @@ snapshots:
     dependencies:
       zod: 4.6.7
 
+  '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
+    dependencies:
+      '@hono/node-server': 2.1.8(hono@4.13.18)
+      '@modelcontextprotocol/server': 2.4.0
+      hono: 4.13.18
+
   '@modelcontextprotocol/sdk@1.32.2(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 2.1.8(hono@4.13.18)
@@ -4500,12 +4530,37 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@modelcontextprotocol/server-everything@2.3.0':
+    dependencies:
+      '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
+      '@modelcontextprotocol/server': 2.4.0
+      '@modelcontextprotocol/server-legacy': 2.4.0(express@5.3.0)
+      cors: 2.8.6
+      express: 5.3.0
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - supports-color
+
   '@modelcontextprotocol/server-filesystem@2.3.0':
     dependencies:
       '@modelcontextprotocol/server': 2.4.0
       diff: 8.0.4
       minimatch: 11.0.8
       zod: 4.6.7
+
+  '@modelcontextprotocol/server-legacy@2.4.0(express@5.3.0)':
+    dependencies:
+      '@modelcontextprotocol/core': 2.4.0
+      content-type: 1.0.5
+      cors: 2.8.6
+      express-rate-limit: 8.7.4(express@5.3.0)
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.6.7
+    optionalDependencies:
+      express: 5.3.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@modelcontextprotocol/server-memory@2.1.1':
     dependencies:

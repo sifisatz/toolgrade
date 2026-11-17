@@ -10,9 +10,13 @@ Results: [results/leaderboard.json](results/leaderboard.json) and https://sifisa
 
 | Server | Version (pinned) | Tasks | What the checks look at |
 |---|---|---|---|
+| `@modelcontextprotocol/server-everything` | 2.3.0 | 5 + control | the answer, read from the official reference/test server's deterministic tools |
 | `@modelcontextprotocol/server-filesystem` | 2.3.0 | 6 + control | the answer, or files on disk after the run |
 | `@modelcontextprotocol/server-memory` | 2.1.1 | 5 + control | the answer, or the knowledge graph after the run |
 | `@modelcontextprotocol/server-sequential-thinking` | 2.1.1 | 5 + control | the answer to a multi-step problem |
+| `mcp-server-calculator` | 0.2.1 | 4 + control | the exact result of a multi-step expression |
+| `excel-mcp-server` | 2.3.2 | 4 + control | the answer, or a workbook's cells after the run |
+| `mcp-pandoc` | 0.11.1 | 4 + control | the converted content the tool returns |
 
 Versions are pinned in [package.json](package.json); suites are in [suites/](suites/).
 
@@ -51,6 +55,32 @@ Read from the trial trajectories in `results/2026-11-16-qwen3-8b/`:
   tool. The model still called it ~0.7 times per task, and once used it for 17 * 23 (right answer,
   but the control task allows no tool calls). On these problems it added cost, not accuracy.
 
+Read from the trial trajectories in `results/2026-11-17-qwen3-8b/`:
+
+- **everything / no-tool-needed - 1/3 with tools vs 3/3 baseline.** Even on the control task,
+  having 16 tools in context sometimes pulled the model into calling one (`get-sum`) instead of
+  just answering 17 * 23 - a lift regression caused purely by tool-surface distraction, same
+  pattern as `sequential-thinking`.
+- **excel / mark-shipped and add-order - 0/3, zero tool calls.** Faced with 46 tools (~13.5k
+  schema tokens), the model concluded *"none of the provided functions support direct cell
+  modification"* and answered without trying anything - `write_range` was right there in the
+  list. A smaller tool surface, or a server that groups/searches tools instead of listing all 46
+  flat, would very likely change this.
+- **excel / top-customer - 0/3.** Instead of `read_range`, the model reached for
+  `create_pivot_table` with an invented `sort_by` argument that does not exist in that tool's
+  schema, got a validation error back, and gave up rather than retrying with a simpler tool.
+- **pandoc / markdown-to-latex - 0/3 with tools vs 3/3 baseline (-100pp), but this one is a task
+  bug, not a finding.** `convert-contents` requires an explicit `output_file` for LaTeX (one of
+  `mcp-pandoc`'s "advanced formats"), which this task's prompt never asked for. Two of three
+  trials correctly told the user exactly that and stopped; the third supplied its own output path,
+  got a real conversion back, and still failed only because it wrote `\section*{Title}` where the
+  check expected `\section{Title}`. The model handled this task more carefully than the suite did -
+  left in deliberately as a reminder that an unexplained regression is worth reading the
+  trajectory for before it goes in a findings list.
+- **pandoc, more generally.** A content-conversion tool is weak ground for lift when the source
+  content is already sitting in the prompt: on the other three tasks the baseline could often
+  paraphrase a simple markdown/HTML transform itself well enough to pass, even without pandoc.
+
 ## Limitations - read before quoting a number
 
 - A score belongs to **server + model + task set**, never to the server alone. v0 uses one
@@ -61,6 +91,15 @@ Read from the trial trajectories in `results/2026-11-16-qwen3-8b/`:
 - `sequential-thinking` has no state to check, so its tasks are reasoning problems; a lift near
   zero means the scaffold did not help on these problems with this model, not that it never helps.
 - Servers that need accounts or API keys (GitHub, Slack, ...) are not in v0.
+- The runner container's network is internal-only (no internet), by design - see the Reproduce
+  section. Servers that need to reach a real external API (a weather or search API, Wikipedia, ...)
+  are not in v0 either, until that network policy gets a deliberate, separately-reviewed exception.
+- `mcp-server-calculator`'s suite is written and its checks are validated against the real server
+  ([test/benchmark-suites.test.ts](../test/benchmark-suites.test.ts) passes), but it has no
+  published run yet: `qwen3:8b`'s reasoning mode spiralled into several-thousand-token chains of
+  thought on these arithmetic tasks, which combined with this host's CPU throttling to blow past
+  even an extended request timeout. Its `max_tokens` is now capped to fail a runaway trial cleanly
+  instead of timing out the whole run; it just has not been re-run since.
 
 ## Reproduce (containerised - recommended)
 

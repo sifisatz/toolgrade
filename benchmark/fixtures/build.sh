@@ -34,4 +34,9 @@ cd ../..
 # --- sqlite: benchmark/fixtures/sqlite/shop.db ------------------------------------------------
 rm -f sqlite/shop.db
 sqlite3 sqlite/shop.db < sqlite/seed.sql
-echo "fixtures built: git repo ($(git -C git/repo rev-list --all --count) commits), shop.db ($(sqlite3 sqlite/shop.db 'select count(*) from orders') orders)"
+
+# --- excel: benchmark/fixtures/excel/shop.xlsx -------------------------------------------------
+rm -f excel/shop.xlsx
+(cd excel && uv run --with openpyxl==3.1.5 python3 seed.py)
+
+echo "fixtures built: git repo ($(git -C git/repo rev-list --all --count) commits), shop.db ($(sqlite3 sqlite/shop.db 'select count(*) from orders') orders), shop.xlsx ($([ -f excel/shop.xlsx ] && echo ok || echo MISSING))"

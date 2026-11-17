@@ -10,8 +10,9 @@ RUN git clone --depth 1 --branch v1.17.0 https://github.com/googleapis/mcp-toolb
 
 FROM docker.io/library/node:24-bookworm-slim
 
-# git and sqlite3 for the git and database fixtures; python3 for the Python reference servers.
-RUN apt-get update && apt-get install -y --no-install-recommends git sqlite3 python3 ca-certificates \
+# git, sqlite3 for the git and database fixtures; python3 for the Python reference servers;
+# pandoc for mcp-pandoc, which shells out to the real binary.
+RUN apt-get update && apt-get install -y --no-install-recommends git sqlite3 python3 pandoc ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /uvx /usr/local/bin/
 COPY --from=toolbox /out/toolbox /usr/local/bin/toolbox
@@ -19,7 +20,10 @@ COPY --from=toolbox /out/toolbox /usr/local/bin/toolbox
 # Python reference servers, pinned, installed as isolated tools on the image PATH.
 ENV UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_DOWNLOADS=never
 RUN uv tool install --python python3 mcp-server-git==2026.11.11 \
- && uv tool install --python python3 mcp-server-time==2026.11.11
+ && uv tool install --python python3 mcp-server-time==2026.11.11 \
+ && uv tool install --python python3 mcp-server-calculator==0.2.1 \
+ && uv tool install --python python3 excel-mcp-server==2.3.2 \
+ && uv tool install --python python3 mcp-pandoc==0.11.1
 
 RUN corepack enable && corepack prepare pnpm@12.6.0 --activate
 WORKDIR /toolgrade

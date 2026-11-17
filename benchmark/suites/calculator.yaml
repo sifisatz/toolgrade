@@ -1,0 +1,47 @@
+# ToolGrade public benchmark - mcp-server-calculator 0.2.1 (PyPI, pinned in benchmark/container/Containerfile)
+# A tough-baseline case: exact multi-step arithmetic that is easy to get subtly wrong by mental
+# math or token-by-token generation, but trivial for the tool. No fixture, fully stateless.
+name: mcp-server-calculator@0.2.1
+
+server:
+  command: mcp-server-calculator
+  args: []
+
+agent:
+  max_turns: 8
+  # qwen3:8b's reasoning mode can spiral into thousands of chain-of-thought tokens on arithmetic;
+  # cap tightly so a runaway completion fails the trial cleanly instead of timing out the run.
+  max_tokens: 2000
+
+run:
+  trials: 3
+  baseline: true
+  concurrency: 2
+
+tasks:
+  - id: order-of-operations
+    prompt: Using the calculator tool, evaluate (37 * 84 - 156) / 3 + 19 ^ 2. Give the exact result.
+    assert:
+      - { type: output_contains, value: "1345" }
+
+  - id: perfect-square-root
+    prompt: Using the calculator tool, evaluate sqrt(5329) + 17 * 3. Give the exact result.
+    assert:
+      - { type: output_contains, value: "124" }
+
+  - id: factorial-division
+    prompt: Using the calculator tool, evaluate factorial(10) / 1000. Give the exact result.
+    assert:
+      - { type: output_contains, value: "3628.8" }
+
+  - id: floor-div-and-mod
+    prompt: Using the calculator tool, evaluate 17 // 5 * 100 + 17 % 5. Give the exact result.
+    assert:
+      - { type: output_contains, value: "302" }
+
+  - id: no-tool-needed
+    tags: [control]
+    prompt: What is 17 * 23? Reply with just the number.
+    assert:
+      - { type: output_contains, value: "391" }
+      - { type: max_tool_calls, value: 0 }

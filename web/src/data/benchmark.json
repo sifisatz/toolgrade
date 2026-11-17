@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T11:27:39.049Z",
+  "generatedAt": "2026-11-17T22:11:05.481Z",
   "entries": [
     {
       "server": "memory",
@@ -35,7 +35,9 @@
       "perTask": [
         {
           "id": "recall-lead",
-          "tags": ["read"],
+          "tags": [
+            "read"
+          ],
           "tools": 0,
           "baseline": 0,
           "lift": 0,
@@ -43,7 +45,9 @@
         },
         {
           "id": "remember-person",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -51,7 +55,9 @@
         },
         {
           "id": "relate-people",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -59,7 +65,9 @@
         },
         {
           "id": "update-fact",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -67,7 +75,9 @@
         },
         {
           "id": "forget-person",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -75,7 +85,9 @@
         },
         {
           "id": "no-tool-needed",
-          "tags": ["control"],
+          "tags": [
+            "control"
+          ],
           "tools": 1,
           "baseline": 1,
           "lift": 0,
@@ -117,7 +129,9 @@
       "perTask": [
         {
           "id": "find-decision",
-          "tags": ["read"],
+          "tags": [
+            "read"
+          ],
           "tools": 0.6666666666666666,
           "baseline": 0,
           "lift": 0.6666666666666666,
@@ -125,7 +139,9 @@
         },
         {
           "id": "top-region",
-          "tags": ["read"],
+          "tags": [
+            "read"
+          ],
           "tools": 0,
           "baseline": 0,
           "lift": 0,
@@ -133,7 +149,9 @@
         },
         {
           "id": "edit-config",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -141,7 +159,9 @@
         },
         {
           "id": "append-todo",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 0.3333333333333333,
           "baseline": 0,
           "lift": 0.3333333333333333,
@@ -149,7 +169,9 @@
         },
         {
           "id": "create-changelog",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 1,
           "baseline": 0,
           "lift": 1,
@@ -157,7 +179,9 @@
         },
         {
           "id": "rename-report",
-          "tags": ["write"],
+          "tags": [
+            "write"
+          ],
           "tools": 0.6666666666666666,
           "baseline": 0,
           "lift": 0.6666666666666666,
@@ -165,7 +189,188 @@
         },
         {
           "id": "no-tool-needed",
-          "tags": ["control"],
+          "tags": [
+            "control"
+          ],
+          "tools": 1,
+          "baseline": 1,
+          "lift": 0,
+          "meanToolCalls": 0
+        }
+      ]
+    },
+    {
+      "server": "everything",
+      "package": "server-everything",
+      "version": "2.3.0",
+      "model": "qwen3:8b",
+      "provider": "openai-compatible",
+      "date": "2026-11-17",
+      "runDir": "2026-11-17-qwen3-8b",
+      "tools": 16,
+      "schemaTokens": 1638,
+      "tasks": 6,
+      "trialsPerTask": 3,
+      "passRate": {
+        "rate": 0.5555555555555556,
+        "low": 0.22266445759092068,
+        "high": 0.8450761766694823
+      },
+      "baseline": {
+        "rate": 0.2222222222222222,
+        "low": 0.04918540549823075,
+        "high": 0.6121114231997544
+      },
+      "lift": {
+        "delta": 0.33333333333333337,
+        "low": -0.1793362211976517,
+        "high": 0.6706224229762777
+      },
+      "significance": "not_significant",
+      "meanToolCalls": 0.7777777777777778,
+      "errors": 0,
+      "controlPassed": 0.3333333333333333,
+      "perTask": [
+        {
+          "id": "hidden-config",
+          "tags": [
+            "read"
+          ],
+          "tools": 1,
+          "baseline": 0,
+          "lift": 1,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "masked-secret",
+          "tags": [
+            "read",
+            "security"
+          ],
+          "tools": 1,
+          "baseline": 0,
+          "lift": 1,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "chicago-weather",
+          "tags": [
+            "read"
+          ],
+          "tools": 0,
+          "baseline": 0,
+          "lift": 0,
+          "meanToolCalls": 0
+        },
+        {
+          "id": "resource-seven",
+          "tags": [
+            "read"
+          ],
+          "tools": 0.6666666666666666,
+          "baseline": 0,
+          "lift": 0.6666666666666666,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "exact-sum",
+          "tags": [
+            "read"
+          ],
+          "tools": 0.3333333333333333,
+          "baseline": 0.3333333333333333,
+          "lift": 0,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "no-tool-needed",
+          "tags": [
+            "control"
+          ],
+          "tools": 0.3333333333333333,
+          "baseline": 1,
+          "lift": -0.6666666666666667,
+          "meanToolCalls": 0.6666666666666666
+        }
+      ]
+    },
+    {
+      "server": "excel",
+      "package": "excel-mcp-server",
+      "version": "2.3.2",
+      "model": "qwen3:8b",
+      "provider": "openai-compatible",
+      "date": "2026-11-17",
+      "runDir": "2026-11-17-qwen3-8b",
+      "tools": 46,
+      "schemaTokens": 13545,
+      "tasks": 5,
+      "trialsPerTask": 3,
+      "passRate": {
+        "rate": 0.2,
+        "low": 0.03622410822563066,
+        "high": 0.6244653729700049
+      },
+      "baseline": {
+        "rate": 0.2,
+        "low": 0.03622410822563066,
+        "high": 0.6244653729700049
+      },
+      "lift": {
+        "delta": 0,
+        "low": -0.45496526853931973,
+        "high": 0.45496526853931973
+      },
+      "significance": "not_significant",
+      "meanToolCalls": 0.7333333333333334,
+      "errors": 0,
+      "controlPassed": 1,
+      "perTask": [
+        {
+          "id": "top-customer",
+          "tags": [
+            "read"
+          ],
+          "tools": 0,
+          "baseline": 0,
+          "lift": 0,
+          "meanToolCalls": 2.3333333333333335
+        },
+        {
+          "id": "pending-total",
+          "tags": [
+            "read"
+          ],
+          "tools": 0,
+          "baseline": 0,
+          "lift": 0,
+          "meanToolCalls": 1.3333333333333333
+        },
+        {
+          "id": "mark-shipped",
+          "tags": [
+            "write"
+          ],
+          "tools": 0,
+          "baseline": 0,
+          "lift": 0,
+          "meanToolCalls": 0
+        },
+        {
+          "id": "add-order",
+          "tags": [
+            "write"
+          ],
+          "tools": 0,
+          "baseline": 0,
+          "lift": 0,
+          "meanToolCalls": 0
+        },
+        {
+          "id": "no-tool-needed",
+          "tags": [
+            "control"
+          ],
           "tools": 1,
           "baseline": 1,
           "lift": 0,
@@ -247,11 +452,101 @@
         },
         {
           "id": "no-tool-needed",
-          "tags": ["control"],
+          "tags": [
+            "control"
+          ],
           "tools": 0.6666666666666666,
           "baseline": 1,
           "lift": -0.33333333333333337,
           "meanToolCalls": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "server": "pandoc",
+      "package": "mcp-pandoc",
+      "version": "0.11.1",
+      "model": "qwen3:8b",
+      "provider": "openai-compatible",
+      "date": "2026-11-17",
+      "runDir": "2026-11-17-qwen3-8b",
+      "tools": 1,
+      "schemaTokens": 1503,
+      "tasks": 5,
+      "trialsPerTask": 3,
+      "passRate": {
+        "rate": 0.6,
+        "low": 0.23072427940911855,
+        "high": 0.8823792268590028
+      },
+      "baseline": {
+        "rate": 1,
+        "low": 0.5655175313406071,
+        "high": 1
+      },
+      "lift": {
+        "delta": -0.4,
+        "low": -0.7692757205908815,
+        "high": 0.11818244213196616
+      },
+      "significance": "not_significant",
+      "meanToolCalls": 1.0666666666666667,
+      "errors": 0,
+      "controlPassed": 1,
+      "perTask": [
+        {
+          "id": "markdown-to-html",
+          "tags": [
+            "markdown",
+            "html"
+          ],
+          "tools": 0.3333333333333333,
+          "baseline": 1,
+          "lift": -0.6666666666666667,
+          "meanToolCalls": 2
+        },
+        {
+          "id": "html-to-markdown",
+          "tags": [
+            "html",
+            "markdown"
+          ],
+          "tools": 0.6666666666666666,
+          "baseline": 1,
+          "lift": -0.33333333333333337,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "list-conversion",
+          "tags": [
+            "markdown",
+            "html"
+          ],
+          "tools": 1,
+          "baseline": 1,
+          "lift": 0,
+          "meanToolCalls": 1
+        },
+        {
+          "id": "markdown-to-latex",
+          "tags": [
+            "markdown",
+            "latex"
+          ],
+          "tools": 0,
+          "baseline": 1,
+          "lift": -1,
+          "meanToolCalls": 1.3333333333333333
+        },
+        {
+          "id": "no-tool-needed",
+          "tags": [
+            "control"
+          ],
+          "tools": 1,
+          "baseline": 1,
+          "lift": 0,
+          "meanToolCalls": 0
         }
       ]
     }

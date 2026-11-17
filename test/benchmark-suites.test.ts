@@ -14,6 +14,7 @@ const onPath = (bin: string) => (process.env.PATH ?? "").split(delimiter).some((
 const npmInstalled = (pkg: string) => existsSync(join(ROOT, "node_modules", pkg));
 // The npm servers install with `pnpm install` in benchmark/; the rest exist only in the runner image.
 const AVAILABLE: Record<string, () => boolean> = {
+  everything: () => npmInstalled("@modelcontextprotocol/server-everything"),
   filesystem: () => npmInstalled("@modelcontextprotocol/server-filesystem"),
   memory: () => npmInstalled("@modelcontextprotocol/server-memory"),
   "sequential-thinking": () => npmInstalled("@modelcontextprotocol/server-sequential-thinking"),
@@ -21,6 +22,9 @@ const AVAILABLE: Record<string, () => boolean> = {
   git: () => onPath("mcp-server-git") && existsSync(join(ROOT, "fixtures", "git", "repo")),
   sqlite: () => onPath("toolbox") && existsSync(join(ROOT, "fixtures", "sqlite", "shop.db")),
   time: () => onPath("mcp-server-time"),
+  calculator: () => onPath("mcp-server-calculator"),
+  excel: () => onPath("excel-mcp-server") && existsSync(join(ROOT, "fixtures", "excel", "shop.xlsx")),
+  pandoc: () => onPath("mcp-pandoc") && onPath("pandoc"),
 };
 
 type Step = [tool: string, args: Record<string, unknown>];
@@ -49,6 +53,14 @@ async function verdict(suite: Suite, taskId: string, ref: Reference | "untouched
 }
 
 const REFERENCES: Record<string, Record<string, Reference>> = {
+  everything: {
+    "hidden-config": { answer: "The FOO_BENCHMARK environment variable is marker-9f2." },
+    "masked-secret": { answer: "The API_TOKEN environment variable is <redacted>." },
+    "chicago-weather": { answer: "Chicago: temperature 36 C, conditions light rain / drizzle, humidity 82%." },
+    "resource-seven": { answer: "Resource 7: this is a plaintext resource created a moment ago." },
+    "exact-sum": { answer: "67839" },
+    "no-tool-needed": { answer: "391" },
+  },
   filesystem: {
     "find-decision": { answer: "They decided to migrate billing to the v2 API by December." },
     "top-region": { answer: "The US had the highest revenue: 205k EUR." },
@@ -106,6 +118,27 @@ const REFERENCES: Record<string, Record<string, Reference>> = {
     "out-of-stock": { answer: "City Sneaker." },
     "ship-order": { steps: [["execute_sql", { sql: "UPDATE orders SET status = 'shipped' WHERE id = 3" }]] },
     "add-customer": { steps: [["execute_sql", { sql: "INSERT INTO customers (name, country) VALUES ('Sofia Andersson', 'SE')" }]] },
+    "no-tool-needed": { answer: "391" },
+  },
+  calculator: {
+    "order-of-operations": { answer: "The result is 1345." },
+    "perfect-square-root": { answer: "The result is 124." },
+    "factorial-division": { answer: "The result is 3628.8." },
+    "floor-div-and-mod": { answer: "The result is 302." },
+    "no-tool-needed": { answer: "391" },
+  },
+  excel: {
+    "top-customer": { answer: "Nikos Pappas has the highest order, 300." },
+    "pending-total": { answer: "The total of pending orders is 372." },
+    "mark-shipped": { steps: [["write_range", { path: "shop.xlsx", sheet: "Orders", at: "D3", rows: [["shipped"]] }]] },
+    "add-order": { steps: [["write_range", { path: "shop.xlsx", sheet: "Orders", at: "A7", rows: [[6, "Dimitris Georgiou", 150, "pending"]] }]] },
+    "no-tool-needed": { answer: "391" },
+  },
+  pandoc: {
+    "markdown-to-html": { answer: '<h1 id="hello">Hello</h1>\n<p>This is <strong>bold</strong> text.</p>' },
+    "html-to-markdown": { answer: "## Section\n\nSome *italic* text." },
+    "list-conversion": { answer: "<ul>\n<li>apples</li>\n<li>bananas</li>\n<li>cherries</li>\n</ul>" },
+    "markdown-to-latex": { answer: "\\section{Title}\n\nBody text here." },
     "no-tool-needed": { answer: "391" },
   },
   playwright: {

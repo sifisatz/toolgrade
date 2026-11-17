@@ -1,0 +1,49 @@
+# ToolGrade public benchmark - mcp-pandoc 0.11.1 (PyPI, pinned in benchmark/container/Containerfile)
+# Inline content<->content conversions only (no output_file), so every check reads the tool's own
+# response text. Fully offline: pandoc never touches the network.
+name: mcp-pandoc@0.11.1
+
+server:
+  command: mcp-pandoc
+  args: []
+
+agent:
+  max_turns: 8
+  max_tokens: 6000
+
+run:
+  trials: 3
+  baseline: true
+  concurrency: 2
+
+tasks:
+  - id: markdown-to-html
+    tags: [markdown, html]
+    prompt: Using the document conversion tool, convert this markdown to HTML and show me the result - "# Hello\n\nThis is **bold** text."
+    assert:
+      - { type: output_contains, value: ["<h1", Hello, "<strong>bold</strong>"] }
+
+  - id: html-to-markdown
+    tags: [html, markdown]
+    prompt: Using the document conversion tool, convert this HTML to markdown and show me the result - "<h2>Section</h2><p>Some <em>italic</em> text.</p>"
+    assert:
+      - { type: output_contains, value: ["## Section", italic] }
+
+  - id: list-conversion
+    tags: [markdown, html]
+    prompt: Using the document conversion tool, convert this markdown list to HTML and show me the result - "- apples\n- bananas\n- cherries"
+    assert:
+      - { type: output_contains, value: ["<li>apples</li>", "<li>bananas</li>", "<li>cherries</li>"] }
+
+  - id: markdown-to-latex
+    tags: [markdown, latex]
+    prompt: Using the document conversion tool, convert this markdown to LaTeX and show me the result - "# Title\n\nBody text here."
+    assert:
+      - { type: output_contains, value: "\\section{Title}" }
+
+  - id: no-tool-needed
+    tags: [control]
+    prompt: What is 17 * 23? Reply with just the number.
+    assert:
+      - { type: output_contains, value: "391" }
+      - { type: max_tool_calls, value: 0 }

@@ -1,0 +1,57 @@
+# ToolGrade public benchmark - excel-mcp-server 2.3.2 (PyPI, pinned in benchmark/container/Containerfile)
+# Each trial gets a fresh copy of ../fixtures/excel (shop.xlsx, built by ../fixtures/build.sh) as
+# its allowed folder. Outcome checks read the workbook back after the run.
+name: excel-mcp-server@2.3.2
+
+server:
+  command: excel-mcp-server
+  args: [stdio, --allow-dir, "${TRIAL_DIR}"]
+  fixture: ../fixtures/excel
+
+agent:
+  max_turns: 10
+  max_tokens: 6000
+
+run:
+  trials: 3
+  baseline: true
+  concurrency: 2
+
+tasks:
+  - id: top-customer
+    tags: [read]
+    prompt: Using the Excel tools, read the Orders sheet in shop.xlsx. Which customer has the highest order amount, and what is it?
+    assert:
+      - { type: output_contains, value: [Nikos Pappas, "300"] }
+
+  - id: pending-total
+    tags: [read]
+    prompt: In shop.xlsx, what is the total amount of orders whose status is "pending"?
+    assert:
+      - { type: output_contains, value: "372" }
+
+  - id: mark-shipped
+    tags: [write]
+    prompt: In shop.xlsx, change the status of the order for Sofia Andersson (id 2) to "shipped". Leave every other order unchanged.
+    assert:
+      - type: state
+        tool: read_range
+        args: { path: shop.xlsx, sheet: Orders, range: "D3:D3" }
+        contains: "shipped"
+        not_contains: pending
+
+  - id: add-order
+    tags: [write]
+    prompt: Add a new row to the Orders sheet in shop.xlsx for id 6, customer "Dimitris Georgiou", amount 150, status "pending". Keep the existing rows.
+    assert:
+      - type: state
+        tool: read_range
+        args: { path: shop.xlsx, sheet: Orders, range: "A7:D7" }
+        contains: ["6", Dimitris Georgiou, "150", pending]
+
+  - id: no-tool-needed
+    tags: [control]
+    prompt: What is 17 * 23? Reply with just the number.
+    assert:
+      - { type: output_contains, value: "391" }
+      - { type: max_tool_calls, value: 0 }
