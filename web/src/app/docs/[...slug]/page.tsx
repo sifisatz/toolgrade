@@ -4,7 +4,12 @@ import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ALL_DOC_SLUGS, DOC_SECTIONS, getDocContent } from "@/lib/docs";
+import {
+  ALL_DOC_SLUGS,
+  DOC_SECTIONS,
+  findDocLink,
+  getDocContent,
+} from "@/lib/docs";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ slug: string[] }> };
