@@ -5,4 +5,5 @@ packages:
 allowBuilds:
   esbuild: true
   sharp: false
+  simple-git-hooks: true
   unrs-resolver: false

@@ -3,6 +3,7 @@
 // behind) must fail. A check that cannot tell the two apart would make the leaderboard lie.
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import type { Trajectory } from "../src/agent.js";
 import { evaluateAll } from "../src/assertions.js";
@@ -10,15 +11,27 @@ import { loadSuite, type Suite } from "../src/config.js";
 import { openSession } from "../src/mcp.js";
 
 const ROOT = join(import.meta.dirname, "..", "benchmark");
+const require = createRequire(import.meta.url);
 const onPath = (bin: string) => (process.env.PATH ?? "").split(delimiter).some((dir) => existsSync(join(dir, bin)));
 const npmInstalled = (pkg: string) => existsSync(join(ROOT, "node_modules", pkg));
+// `@playwright/mcp` can be in node_modules with its browser never downloaded (a `pnpm install`
+// alone does not fetch it) - check the real executable, not just the package, or the suite "runs"
+// and fails on every trial instead of skipping cleanly.
+const chromiumInstalled = () => {
+  try {
+    const { chromium } = require(join(ROOT, "node_modules", "playwright"));
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+};
 // The npm servers install with `pnpm install` in benchmark/; the rest exist only in the runner image.
 const AVAILABLE: Record<string, () => boolean> = {
   everything: () => npmInstalled("@modelcontextprotocol/server-everything"),
   filesystem: () => npmInstalled("@modelcontextprotocol/server-filesystem"),
   memory: () => npmInstalled("@modelcontextprotocol/server-memory"),
   "sequential-thinking": () => npmInstalled("@modelcontextprotocol/server-sequential-thinking"),
-  playwright: () => npmInstalled("@playwright/mcp"),
+  playwright: () => npmInstalled("@playwright/mcp") && chromiumInstalled(),
   git: () => onPath("mcp-server-git") && existsSync(join(ROOT, "fixtures", "git", "repo")),
   sqlite: () => onPath("toolbox") && existsSync(join(ROOT, "fixtures", "sqlite", "shop.db")),
   time: () => onPath("mcp-server-time"),

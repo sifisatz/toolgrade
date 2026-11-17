@@ -30,7 +30,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "example:server": "tsx examples/notes-server/server.ts",
-    "demo": "tsx examples/offline-demo.ts"
+    "demo": "tsx examples/offline-demo.ts",
+    "prepare": "simple-git-hooks",
+    "pre-commit": "pnpm typecheck && pnpm --dir web lint && pnpm --dir web typecheck"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm run pre-commit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
@@ -42,6 +47,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "simple-git-hooks": "^2.14.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
