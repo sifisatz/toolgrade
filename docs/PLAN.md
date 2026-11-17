@@ -85,21 +85,22 @@ from the parts customers cannot easily build themselves.
 ## 8. Roadmap
 
 Ordered by evidence per unit of effort. Each phase has an exit criterion; do not start the next
-phase's build work until the previous one has produced its evidence.
+phase's build work until the previous one has produced its evidence. Status reflects what is
+actually in the repo as of 2026-11-17.
 
-| # | Phase | What | Exit criterion |
-|---|---|---|---|
-| 1 | **Public benchmark** (now) | Grade widely used, credential-free MCP servers with real, state-checked tasks; pinned versions; publish a leaderboard and the method. Needs per-trial sandbox fixtures in the engine. | Leaderboard live; results reproducible from the repo with one command; method page published. |
-| 2 | **Customer discovery** (in parallel with 1) | Talk to 10-15 teams shipping MCP servers; use the benchmark as the conversation opener; sign 3 design partners. | 3 partners running ToolGrade weekly; a ranked list of their pains. |
-| 3 | **Auto-generated tasks** | Generate candidate tasks and outcome checks from tool schemas, docs and (later) real usage logs; a human approves; generated tasks are validated against the live server before use. | Partners get a useful first suite in under 15 minutes without writing tasks by hand. |
-| 4 | **Model matrix and drift alerts** | Run the same suite across Claude, GPT, Gemini and open models; re-run on vendor model releases; alert on significant drops. | First alert that a partner acts on. |
-| 5 | **Stateful sandboxes** | Per-trial seeded environments beyond files: databases, mock accounts, recorded APIs. | A partner's real server graded with state checks, no production data touched. |
-| 6 | **Tool-description optimisation** | Automatically test description and schema variants; report the wording with the best significant lift. | One measured, shipped description improvement at a partner. |
-| 7 | **Monetisation** | Pricing tested with partners (likely per tool surface with run-minutes, plus enterprise); billing only once someone asks to pay. | First paid contract. |
+| # | Phase | What | Exit criterion | Status |
+|---|---|---|---|---|
+| 1 | **Public benchmark** | Grade widely used, credential-free MCP servers with real, state-checked tasks; pinned versions; publish a leaderboard and the method. | Leaderboard live; results reproducible from the repo with one command; method page published. | **Shipped.** `benchmark/` runs filesystem, memory, and sequential-thinking suites with per-trial fixture isolation (`benchmark/run.sh`, `benchmark/suites/`); `benchmark/results/leaderboard.json` and the marketing site's `/benchmark` page publish results and method. Still one model column (`qwen3:8b`) - hosted-model columns are the remaining gap, see phase 4. |
+| 2 | **Customer discovery** (in parallel with 1) | Talk to 10-15 teams shipping MCP servers; use the benchmark as the conversation opener; sign 3 design partners. | 3 partners running ToolGrade weekly; a ranked list of their pains. | Not tracked in this repo - a business-development effort, not a code artifact. |
+| 3 | **Auto-generated tasks** | Generate candidate tasks and outcome checks from tool schemas, docs and (later) real usage logs; a human approves; generated tasks are validated against the live server before use. | Partners get a useful first suite in under 15 minutes without writing tasks by hand. | **Partially shipped.** `toolgrade init` (`src/init.ts`) generates one starter task per discovered tool plus a no-tool control task, by introspecting the live server's tool schemas. Prompts and rubrics are left as `TODO:` placeholders the human must fill in (`run` refuses suites that still contain them) - there is no generation from docs or usage logs yet, and no auto-validation loop beyond the human editing pass. |
+| 4 | **Model matrix and drift alerts** | Run the same suite across Claude, GPT, Gemini and open models; re-run on vendor model releases; alert on significant drops. | First alert that a partner acts on. | **Half shipped.** The hosted app has a model matrix (`web/src/app/app/[org]/[project]/model-matrix/`) comparing every model a project has run against, with trend sparklines and lift per model - and the CLI already supports Anthropic, OpenAI-compatible, and local-model providers (`src/providers/`). Drift *alerting* (re-run on vendor releases, notify on a significant drop) is not built; the only scheduled job today is retention cleanup (`web/src/app/api/cron/retention-cleanup/`). |
+| 5 | **Stateful sandboxes** | Per-trial seeded environments beyond files: databases, mock accounts, recorded APIs. | A partner's real server graded with state checks, no production data touched. | Not started. Isolation today is still per-trial fixture directories (`${TRIAL_DIR}`), not databases or mock external services. |
+| 6 | **Tool-description optimisation** | Automatically test description and schema variants; report the wording with the best significant lift. | One measured, shipped description improvement at a partner. | Not started. `src/lint.ts` statically lints existing descriptions/schemas (part of the original PoC scope's `inspect` command) but does not generate or A/B-test variants. |
+| 7 | **Monetisation** | Pricing tested with partners (likely per tool surface with run-minutes, plus enterprise); billing only once someone asks to pay. | First paid contract. | **Infra shipped.** Stripe Checkout, webhook-driven subscription sync, and plan gating are live (`web/src/app/api/stripe/webhook/`, `web/src/lib/billing.ts`, `web/src/lib/stripe.ts`), and the marketing site has a live pricing section. The exit criterion itself - a first paid contract - is a business outcome this repo can't confirm either way. |
 
 Risks to watch: a model vendor or eval platform ships this as a feature (mitigation: speed, the
 benchmark as category ownership, depth on sandboxes); MCP spec churn; model spend per run (who
-pays, and how to keep runs cheap - local models and caching help); thin moat until phases 3-5.
+pays, and how to keep runs cheap - local models and caching help); thin moat until phases 5-6 land.
 
 ### Phase 1 detail: the public benchmark
 
@@ -109,7 +110,8 @@ pays, and how to keep runs cheap - local models and caching help); thin moat unt
   run (files on disk, entities in a knowledge graph), plus at least one no-tool control task.
 - **Isolation:** each trial gets a fresh copy of the suite's fixture directory (`${TRIAL_DIR}`).
 - **Models:** start with an open-weights model on a laptop (free, reproducible); add hosted
-  models as columns when keys are available. Always label the model next to the score.
+  models as columns when keys are available. Always label the model next to the score. Shipped
+  so far: one open-weights column (`qwen3:8b`); hosted-model columns are still open.
 - **Publication:** results page on the marketing site, raw run reports in the repo, method and
   limitations stated next to the numbers. A score is about server + model + task set together,
   never the server alone.
