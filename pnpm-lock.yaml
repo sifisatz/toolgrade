@@ -209,12 +209,6 @@ importers:
       '@modelcontextprotocol/server-sequential-thinking':
         specifier: 2.1.1
         version: 2.1.1
-      '@playwright/mcp':
-        specifier: 0.0.85
-        version: 0.0.85
-      playwright:
-        specifier: 1.66.0-alpha-2026-11-09
-        version: 1.66.0-alpha-2026-11-09
 
   web:
     dependencies:
@@ -1424,11 +1418,6 @@ packages:
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
-
-  '@playwright/mcp@0.0.85':
-    resolution: {integrity: sha512-bSfECMbLXhJdWkGhLzNMxTZuazG+9IDJ679gflji3yyD94e7ARnGdqmJmG6lTPB+gYX+OiFLmX5myBl62+wZEw==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   '@reduxjs/toolkit@2.14.0':
     resolution: {integrity: sha512-m/PxMwRe0xLL6XUsAgy0YjInklHcfi9uMwFhJk+QINqjxqPvyc89T5cMjszA5bDmTE0gwGc7zr9LRO4gL+mhaw==}
@@ -3143,16 +3132,6 @@ packages:
     resolution: {integrity: sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA==}
     engines: {node: '>=8'}
 
-  playwright-core@1.66.0-alpha-2026-11-09:
-    resolution: {integrity: sha512-HZVc/E3nqrasH7PPvJNwc7aCNsKXKjvtViZBpeFfopGOeB0zr3r5q4TKfqzkrdIcCKWCulyLVVGtla/LYbmxUQ==}
-    engines: {node: '>=20'}
-    hasBin: true
-
-  playwright@1.66.0-alpha-2026-11-09:
-    resolution: {integrity: sha512-raaHhtTYsm9ydMdGa11MEIwI8KM9RP4CuyvAb/lbd6e3bYhsBHXPMVGvyYJWldQxwUgMYnngY2VY5vCpimB2Dg==}
-    engines: {node: '>=20'}
-    hasBin: true
-
   postcss-selector-parser@7.2.1:
     resolution: {integrity: sha512-GwxlMgTTXwIom+ebC7an3k6RaJDwklRQQnfiXsLPGicu8FYV/k/+1/9YY2OU2+r938H2t4X0TDxoif+HP2rjzQ==}
     engines: {node: '>=4'}
@@ -4551,11 +4530,6 @@ snapshots:
 
   '@oxc-project/types@0.156.0': {}
 
-  '@playwright/mcp@0.0.85':
-    dependencies:
-      playwright: 1.66.0-alpha-2026-11-09
-      playwright-core: 1.66.0-alpha-2026-11-09
-
   '@reduxjs/toolkit@2.14.0(@types/react@19.3.0)(react-redux@9.3.1(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1))(react@19.3.0)':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -5927,12 +5901,6 @@ snapshots:
   pkg-up@3.1.0:
     dependencies:
       find-up: 3.0.0
-
-  playwright-core@1.66.0-alpha-2026-11-09: {}
-
-  playwright@1.66.0-alpha-2026-11-09:
-    dependencies:
-      playwright-core: 1.66.0-alpha-2026-11-09
 
   postcss-selector-parser@7.2.1:
     dependencies:
