@@ -100,9 +100,12 @@ describe("upload endpoint hardening", () => {
   });
 });
 
+// biome-ignore lint/suspicious/noExplicitAny: intentional mutation helpers for schema rejection tests
+type AnyRecord = Record<string, any>;
+
 describe("report validation covers everything the pages render", () => {
-  const bad = (mutate: (r: Record<string, any>) => void) => {
-    const r = structuredClone(report) as unknown as Record<string, any>;
+  const bad = (mutate: (r: AnyRecord) => void) => {
+    const r = structuredClone(report) as unknown as AnyRecord;
     mutate(r);
     return UploadSchema.safeParse({ report: r }).success;
   };
@@ -114,33 +117,24 @@ describe("report validation covers everything the pages render", () => {
   it.each([
     [
       "non-integer error count",
-      (r: Record<string, any>) => (r.overall.tools.trials.errors = 1.5),
+      (r: AnyRecord) => (r.overall.tools.trials.errors = 1.5),
     ],
-    [
-      "rate above 1",
-      (r: Record<string, any>) => (r.overall.tools.rate.high = 1.2),
-    ],
-    ["missing gate checks", (r: Record<string, any>) => delete r.gate.checks],
-    [
-      "missing per-task arm summary",
-      (r: Record<string, any>) => delete r.tasks[0].tools,
-    ],
+    ["rate above 1", (r: AnyRecord) => (r.overall.tools.rate.high = 1.2)],
+    ["missing gate checks", (r: AnyRecord) => delete r.gate.checks],
+    ["missing per-task arm summary", (r: AnyRecord) => delete r.tasks[0].tools],
     [
       "object where a string is rendered",
-      (r: Record<string, any>) => (r.gate.checks[0].detail = { x: 1 }),
+      (r: AnyRecord) => (r.gate.checks[0].detail = { x: 1 }),
     ],
-    ["null trial entry", (r: Record<string, any>) => r.trials.push(null)],
-    [
-      "absurd trials per task",
-      (r: Record<string, any>) => (r.trialsPerTask = 2 ** 40),
-    ],
-    ["overflowing cost", (r: Record<string, any>) => (r.totalCostUsd = 1e12)],
+    ["null trial entry", (r: AnyRecord) => r.trials.push(null)],
+    ["absurd trials per task", (r: AnyRecord) => (r.trialsPerTask = 2 ** 40)],
+    ["overflowing cost", (r: AnyRecord) => (r.totalCostUsd = 1e12)],
   ])("rejects %s", (_name, mutate) => {
     expect(bad(mutate)).toBe(false);
   });
 
   it("fills defaults for fields older engines did not send", () => {
-    const r = structuredClone(report) as unknown as Record<string, any>;
+    const r = structuredClone(report) as unknown as AnyRecord;
     delete r.costIsLowerBound;
     for (const t of r.tasks) delete t.prompt;
     for (const t of r.trials) delete t.skipped;

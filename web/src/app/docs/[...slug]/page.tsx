@@ -4,12 +4,7 @@ import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ALL_DOC_SLUGS,
-  DOC_SECTIONS,
-  findDocLink,
-  getDocContent,
-} from "@/lib/docs";
+import { ALL_DOC_SLUGS, DOC_SECTIONS, getDocContent } from "@/lib/docs";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ slug: string[] }> };
@@ -30,8 +25,6 @@ export default async function DocPage({ params }: Props) {
   const joined = slug.join("/");
   const html = await getDocContent(joined);
   if (!html) notFound();
-
-  const currentLink = findDocLink(joined);
 
   // Build flat ordered list for prev/next
   const allLinks = DOC_SECTIONS.flatMap((s) => s.items);

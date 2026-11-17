@@ -1,6 +1,6 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { marked } from "marked";
-import path from "path";
 
 export type DocLink = {
   title: string;
@@ -23,7 +23,10 @@ export const DOC_SECTIONS: DocSection[] = [
   {
     title: "Guides",
     items: [
-      { title: "Writing your first suite", slug: "guides/writing-your-first-suite" },
+      {
+        title: "Writing your first suite",
+        slug: "guides/writing-your-first-suite",
+      },
       { title: "Understanding results", slug: "guides/understanding-results" },
       { title: "GitHub Actions CI", slug: "guides/ci-github-actions" },
       { title: "Using Ollama locally", slug: "guides/using-ollama-locally" },
@@ -61,13 +64,15 @@ export async function getDocContent(slug: string): Promise<string | null> {
     // Rewrite relative markdown links to work in the /docs/ URL space.
     // e.g., ../reference/cli.md -> /docs/reference/cli
     //       ./guides/writing.md -> /docs/guides/writing
-    const rewritten = raw.replace(
-      /\[([^\]]+)\]\(\.\.?\/([^)]+)\.md\)/g,
-      (_, text, rest) => `[${text}](/docs/${rest})`,
-    ).replace(
-      /\[([^\]]+)\]\(\.\/([^)]+)\.md\)/g,
-      (_, text, rest) => `[${text}](/docs/${rest})`,
-    );
+    const rewritten = raw
+      .replace(
+        /\[([^\]]+)\]\(\.\.?\/([^)]+)\.md\)/g,
+        (_, text, rest) => `[${text}](/docs/${rest})`,
+      )
+      .replace(
+        /\[([^\]]+)\]\(\.\/([^)]+)\.md\)/g,
+        (_, text, rest) => `[${text}](/docs/${rest})`,
+      );
     return await marked(rewritten, { gfm: true, breaks: false });
   } catch {
     return null;
