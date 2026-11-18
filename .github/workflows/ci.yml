@@ -7,6 +7,11 @@ jobs:
     strategy:
       matrix:
         node: [20, 22, 24]
+    # benchmark/suites/playwright.yaml hardcodes this path for the spawned MCP server (same
+    # convention as the containerised benchmark runner); the test's own availability guard
+    # resolves the browser the same way, so it has to see the same path.
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -15,8 +20,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright's Chromium (benchmark/playwright.yaml needs the real browser)
-        run: pnpm --dir benchmark exec playwright install --with-deps chromium
+      - name: Install Playwright's Chromium at /ms-playwright
+        run: |
+          sudo mkdir -p /ms-playwright
+          sudo chown "$(id -u):$(id -g)" /ms-playwright
+          pnpm --dir benchmark exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
