@@ -366,6 +366,17 @@ export default function BenchmarkPage() {
                   these problems with this model.
                 </li>
                 <li>Servers that need accounts or API keys are not in v0.</li>
+                <li>
+                  The runner container&apos;s network is internal-only by
+                  design, so servers that need a real external API (weather,
+                  search, Wikipedia) are not in v0 either.
+                </li>
+                <li>
+                  mcp-server-calculator&apos;s suite is written and validated
+                  but has no published run yet - qwen3:8b&apos;s reasoning mode
+                  spiralled into runaway chain-of-thought on these arithmetic
+                  tasks, timing out even an extended request timeout.
+                </li>
               </ul>
             </div>
           </div>

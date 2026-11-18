@@ -12,6 +12,56 @@ export interface Finding {
 
 export const FINDINGS: Finding[] = [
   {
+    server: "everything",
+    task: "no-tool-needed",
+    score: "1/3 with tools vs 3/3 baseline",
+    title: "Even one control task was not safe from tool-surface distraction",
+    observed:
+      "The suite's 16 tools include get-sum, a plain addition tool. On the control task (17 * 23, no tools allowed) two of three trials called it anyway instead of just answering, the same distraction pattern seen in sequential-thinking but on a much smaller, simpler tool.",
+    lesson:
+      "A control task earns its keep: it is the only place in this benchmark that isolates tool-surface distraction from everything else the agent is doing.",
+  },
+  {
+    server: "everything",
+    task: "chicago-weather",
+    score: "0/3 with tools, this one is a task bug",
+    title: "The prompt asked for 'the weather tool' - no tool is named that",
+    observed:
+      "All three trials answered 'no weather tool is available' and stopped, correctly: the real tool is get-structured-content, whose name and description never mention weather. The prompt presumed a tool identity the server does not expose.",
+    lesson:
+      "A benchmark task that names a capability the server does not literally advertise is testing the task's wording, not the agent. Left in deliberately, like the pandoc finding below - read the trajectory before trusting a 0% score.",
+  },
+  {
+    server: "excel",
+    task: "mark-shipped, add-order",
+    score: "0/3 with tools, zero tool calls",
+    title: "46 tools in context, and the one it needed went unseen",
+    observed:
+      "Faced with excel-mcp-server's full 46-tool, ~13.5k-token surface, the model concluded 'none of the provided functions support direct cell modification' and answered without calling anything - write_range was in that same list.",
+    lesson:
+      "Tool-surface size is not free. A server that groups or searches its tools instead of listing all of them flat would very likely change this for smaller models.",
+  },
+  {
+    server: "excel",
+    task: "top-customer",
+    score: "0/3 with tools",
+    title: "Reached for the complex tool, not the simple one",
+    observed:
+      "Instead of read_range, the model called create_pivot_table with an invented sort_by argument that tool does not accept, got a validation error back, and gave up rather than retrying with something simpler.",
+    lesson:
+      "A validation error is a second chance, not a dead end - but only if the agent (or the suite's max_turns) gives it room to take it.",
+  },
+  {
+    server: "pandoc",
+    task: "markdown-to-latex",
+    score: "0/3 with tools vs 3/3 baseline, this one is a task bug",
+    title: "The task asked for something the tool cannot do inline",
+    observed:
+      "convert-contents requires an explicit output_file for LaTeX output. Two of three trials correctly told the user exactly that and stopped; the third supplied its own output path, got a real conversion back, and still failed only because it wrote \\section*{Title} where the check expected \\section{Title}.",
+    lesson:
+      "The model handled this task more carefully than the suite did. An unexplained regression is worth reading the trajectory for before it goes in a findings list - this one almost did not.",
+  },
+  {
     server: "sequential-thinking",
     task: "all reasoning tasks",
     score: "no lift",
