@@ -1,13 +1,20 @@
 # ToolGrade
 
-[Website](https://sifisatz.github.io/toolgrade/) - [Platform (web/)](web/README.md) - [Methodology](#statistics-notes)
+[![CI](https://github.com/sifisatz/toolgrade/actions/workflows/ci.yml/badge.svg)](https://github.com/sifisatz/toolgrade/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/toolgrade.svg)](https://www.npmjs.com/package/toolgrade)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node >=20](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](package.json)
+
+[Website](https://sifisatz.github.io/toolgrade/) · [Public benchmark leaderboard](https://sifisatz.github.io/toolgrade/benchmark/) · [Platform (web/)](web/README.md) · [Methodology](#statistics-notes)
 
 **Eval-first quality gates for MCP servers.** ToolGrade answers one question with evidence:
 *does your tool surface make an agent better at real tasks than the same agent with no tools?*
 
 Every task runs in two arms - **with your tools** and **with no tools** - over several trials.
 You get pass rates with confidence intervals, the **lift** over the baseline, cost per trial,
-and a CI gate that fails when quality drops.
+and a CI gate that fails when quality drops. A [public benchmark](benchmark/README.md) runs the
+same engine against widely used reference MCP servers, with every finding traced back to a real
+trial trajectory - not just a number.
 
 Output of `pnpm demo` (real pipeline and real example server; a scripted stand-in replaces the
 model, so it runs with no API key):
@@ -40,6 +47,14 @@ per-task verdicts are Bonferroni-corrected
   create-note                  100% -> 100%  ~
   delete-note                  100% ->   0%  worse
 ```
+
+## Contents
+
+[Why](#why) · [Quick start](#quick-start) · [Local model](#run-with-a-local-model-no-api-key) ·
+[Platform](#platform-dashboard--ingestion-api) · [Commands](#commands) ·
+[Suite file](#suite-file) · [Library use](#library-use) · [CI](#ci) ·
+[Statistics](#statistics-notes) · [Roadmap](#roadmap) ·
+[Public benchmark](benchmark/README.md)
 
 ## Why
 
