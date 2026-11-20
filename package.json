@@ -26,12 +26,14 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "postbuild": "chmod +x dist/cli.js",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "example:server": "tsx examples/notes-server/server.ts",
     "demo": "tsx examples/offline-demo.ts",
     "prepare": "simple-git-hooks",
+    "prepublishOnly": "pnpm build && test -x dist/cli.js || (echo 'dist/cli.js is not executable - aborting publish' && exit 1)",
     "pre-commit": "pnpm typecheck && pnpm --dir web lint && pnpm --dir web typecheck"
   },
   "simple-git-hooks": {
