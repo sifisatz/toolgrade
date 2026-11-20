@@ -6,10 +6,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isStdio, type ServerSpec, type StdioServerSpec } from "./config.js";
 
+export interface McpToolAnnotations {
+  title?: string;
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface McpTool {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
+  /** Behavior hints from the server (MCP spec: all hints, not guaranteed accurate). */
+  annotations?: McpToolAnnotations;
+  /** Declared shape of a successful call's structured result, when the server provides one. */
+  outputSchema?: Record<string, unknown>;
 }
 
 export interface ToolCallOutcome {
@@ -90,6 +102,8 @@ async function listAllTools(client: Client): Promise<McpTool[]> {
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema as Record<string, unknown>,
+        annotations: t.annotations as McpToolAnnotations | undefined,
+        outputSchema: t.outputSchema as Record<string, unknown> | undefined,
       });
     }
     cursor = page.nextCursor;

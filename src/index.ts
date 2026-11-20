@@ -1,8 +1,15 @@
 export { runAgent, type Trajectory, type ToolCallRecord } from "./agent.js";
 export { compareRuns, type Comparison } from "./compare.js";
 export { loadSuite, parseSuite, type AssertionSpec, type Suite, type TaskSpec, type TaskVariantSpec, type ToolOverrideSpec } from "./config.js";
-export { lintToolDescriptions, lintTools, type DescriptionQualityResult, type LintIssue } from "./lint.js";
-export { openSession, type McpSession, type McpTool } from "./mcp.js";
+export {
+  lintToolDescriptions,
+  lintTools,
+  lintToolSafety,
+  type DescriptionQualityResult,
+  type LintIssue,
+  type SafetyFinding,
+} from "./lint.js";
+export { openSession, type McpSession, type McpTool, type McpToolAnnotations } from "./mcp.js";
 export { AnthropicProvider } from "./providers/anthropic.js";
 export { OpenAICompatibleProvider, type OpenAICompatibleOptions } from "./providers/openai.js";
 export { ScriptedProvider, type Script, type ScriptedReply } from "./providers/scripted.js";

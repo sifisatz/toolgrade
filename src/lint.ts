@@ -93,6 +93,102 @@ export function lintToolDescriptions(tools: McpTool[]): DescriptionQualityResult
   });
 }
 
+// ---------------------------------------------------------------------------
+// Safety / destructive-action linting
+// ---------------------------------------------------------------------------
+
+export interface SafetyFinding {
+  toolName: string;
+  severity: "info" | "warn" | "danger";
+  message: string;
+}
+
+const DESTRUCTIVE_VERBS = ["delete", "remove", "drop", "truncate", "wipe", "revoke", "terminate", "kill", "destroy"];
+const WRITE_VERBS = ["create", "update", "set", "write", "insert"];
+const INJECTION_PATTERNS = [/ignore (all )?previous instructions/i, /system\s*:/i, /you are now/i];
+
+// Substring match (not \b-bounded): tool names commonly use underscores ("delete_note") and
+// descriptions commonly conjugate the verb ("deletes", "removing"), neither of which a strict
+// word-boundary match would catch.
+const matchesAny = (text: string, words: string[]): string | undefined => {
+  const lower = text.toLowerCase();
+  return words.find((w) => lower.includes(w));
+};
+
+const hasAnyAnnotation = (a: McpTool["annotations"]): boolean =>
+  a != null && (a.readOnlyHint !== undefined || a.destructiveHint !== undefined || a.idempotentHint !== undefined);
+
+/** Collects every string value found anywhere in a JSON-shaped schema (e.g. example/default values). */
+function collectSchemaStrings(value: unknown, out: string[] = []): string[] {
+  if (typeof value === "string") out.push(value);
+  else if (Array.isArray(value)) for (const v of value) collectSchemaStrings(v, out);
+  else if (value && typeof value === "object") for (const v of Object.values(value)) collectSchemaStrings(v, out);
+  return out;
+}
+
+/**
+ * Static safety heuristics inspired by competitor tooling ("toolscope"): no model calls, no live
+ * server runs - just name/description/annotation pattern matching.
+ *
+ * Notes on scope:
+ *   - `outputSchema` is checked for prompt-injection bait when the server declares one (the MCP SDK
+ *     used here does expose `Tool.outputSchema`); most servers in the wild don't set it, so this
+ *     check will often have nothing to look at beyond the description.
+ */
+export function lintToolSafety(tools: McpTool[]): SafetyFinding[] {
+  const findings: SafetyFinding[] = [];
+
+  for (const tool of tools) {
+    const haystack = `${tool.name} ${tool.description ?? ""}`;
+    const annotations = tool.annotations;
+
+    // 1. Destructive-sounding tool with no destructiveHint.
+    const destructiveVerb = matchesAny(haystack, DESTRUCTIVE_VERBS);
+    if (destructiveVerb && annotations?.destructiveHint !== true && annotations?.readOnlyHint === undefined) {
+      findings.push({
+        toolName: tool.name,
+        severity: "danger",
+        message: `${tool.name} looks destructive (matches /delete|remove|drop/) but declares no destructiveHint annotation`,
+      });
+    }
+
+    // 2. Write-sounding tool with no idempotentHint declared at all.
+    const writeVerb = matchesAny(haystack, WRITE_VERBS);
+    if (writeVerb && annotations?.idempotentHint === undefined) {
+      findings.push({
+        toolName: tool.name,
+        severity: "info",
+        message: `${tool.name} looks like a write operation (matches /create|update|set|write|insert/) but declares no idempotentHint; callers (and ToolGrade's own retry logic) can't tell if it's safe to retry`,
+      });
+    }
+
+    // 3. Prompt-injection-shaped bait in the description or declared outputSchema example/default values.
+    const candidateStrings = [tool.description ?? "", ...collectSchemaStrings(tool.outputSchema)];
+    for (const str of candidateStrings) {
+      const hit = INJECTION_PATTERNS.find((p) => p.test(str));
+      if (hit) {
+        findings.push({
+          toolName: tool.name,
+          severity: "danger",
+          message: `${tool.name} contains a prompt-injection-shaped phrase ("${str.slice(0, 80)}"): matches ${hit}`,
+        });
+        break;
+      }
+    }
+
+    // 4. No annotations declared at all.
+    if (!hasAnyAnnotation(annotations)) {
+      findings.push({
+        toolName: tool.name,
+        severity: "info",
+        message: `${tool.name} declares no behavior hints (readOnlyHint/destructiveHint/idempotentHint) - clients can't reason about safe retry or confirmation prompts`,
+      });
+    }
+  }
+
+  return findings;
+}
+
 export interface LintIssue {
   tool: string;
   level: "error" | "warn";
