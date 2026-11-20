@@ -70,11 +70,25 @@ const Assertion = z.discriminatedUnion("type", [
   }),
 ]);
 
+const ToolOverride = z.object({
+  /** Replacement description for this tool. Null to suppress (hide) the tool entirely. */
+  description: z.string().nullable(),
+});
+
+const TaskVariant = z.object({
+  /** Short identifier used in reports, e.g. "verbose", "concise", "v2" */
+  id: z.string().regex(/^[a-z0-9][a-z0-9_-]*$/i, "variant id must be a slug"),
+  /** Override descriptions for specific tools by name. Only named tools are affected. */
+  tool_overrides: z.record(z.string(), ToolOverride),
+});
+
 const Task = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9_-]*$/i, "task id must be a slug"),
   prompt: z.string().min(1),
   tags: z.array(z.string()).default([]),
   assert: z.array(Assertion).min(1),
+  /** Optional A/B variant arms: each variant re-runs the task with overridden tool descriptions. */
+  variants: z.array(TaskVariant).optional(),
 });
 
 const Price = z.object({ input: z.number().min(0), output: z.number().min(0) });
@@ -115,6 +129,8 @@ export type ServerSpec = Suite["server"];
 export type StdioServerSpec = z.infer<typeof StdioServer>;
 export type TaskSpec = z.infer<typeof Task>;
 export type AssertionSpec = z.infer<typeof Assertion>;
+export type ToolOverrideSpec = z.infer<typeof ToolOverride>;
+export type TaskVariantSpec = z.infer<typeof TaskVariant>;
 
 /**
  * Outcome assertions judge what the agent achieved; process assertions judge how it used tools.

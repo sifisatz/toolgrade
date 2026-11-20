@@ -24,6 +24,8 @@ export interface TrialResult {
   error?: string;
   usage: Usage;
   costUsd: number | null;
+  /** Set for trials that belong to a variant arm (A/B description test). */
+  variantId?: string;
 }
 
 export interface ArmSummary {
@@ -36,6 +38,11 @@ export interface ArmSummary {
   meanOutputTokens: number;
   meanDurationMs: number;
   costUsd: number | null;
+}
+
+/** ArmSummary for a task variant arm — same stats as a normal arm but tagged with the variant id. */
+export interface VariantArmSummary extends ArmSummary {
+  variantId: string;
 }
 
 export interface OverallArm {
@@ -53,6 +60,8 @@ export interface TaskSummary {
   /** Absent when the arm did not run or the task has no outcome assertions to grade it on. */
   baseline?: ArmSummary;
   lift?: Difference;
+  /** Summary per A/B variant arm, in the order the variants are declared. Supplemental — not part of the gate. */
+  variantArms?: VariantArmSummary[];
 }
 
 export interface GateCheck {
@@ -133,23 +142,35 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
   const schemaChars = JSON.stringify(anthropicTools).length;
 
   const baselineEligible = (t: TaskSpec) => withBaseline && t.assert.some(isOutcomeAssertion);
-  const jobs: Array<{ task: TaskSpec; arm: Arm; trial: number }> = [];
+  const jobs: Array<{ task: TaskSpec; arm: Arm; trial: number; variantId?: string; toolOverrides?: Record<string, { description: string | null }> }> = [];
   for (const task of tasks) {
     const arms: Arm[] = baselineEligible(task) ? ["tools", "baseline"] : ["tools"];
     for (const arm of arms) for (let i = 1; i <= trials; i++) jobs.push({ task, arm, trial: i });
+    // Enqueue variant arms after the base arms for this task.
+    for (const variant of task.variants ?? []) {
+      const overrides: Record<string, { description: string | null }> = {};
+      for (const [name, ov] of Object.entries(variant.tool_overrides)) overrides[name] = { description: ov.description };
+      for (let i = 1; i <= trials; i++) jobs.push({ task, arm: "tools", trial: i, variantId: variant.id, toolOverrides: overrides });
+    }
   }
 
   let done = 0;
-  const results = await pool(jobs, opts.concurrency ?? suite.run.concurrency, async ({ task, arm, trial }) => {
-    const result = await runTrial(task, arm, trial);
+  const results = await pool(jobs, opts.concurrency ?? suite.run.concurrency, async ({ task, arm, trial, variantId, toolOverrides }) => {
+    const result = await runTrial(task, arm, trial, variantId, toolOverrides);
     opts.onTrial?.(result, ++done, jobs.length);
     return result;
   });
 
-  async function runTrial(task: TaskSpec, arm: Arm, trial: number): Promise<TrialResult> {
+  async function runTrial(
+    task: TaskSpec,
+    arm: Arm,
+    trial: number,
+    variantId?: string,
+    toolOverrides?: Record<string, { description: string | null }>,
+  ): Promise<TrialResult> {
     const graded = arm === "baseline" ? task.assert.filter(isOutcomeAssertion) : task.assert;
     const skipped = task.assert.filter((a) => !graded.includes(a)).map((a) => a.type);
-    const base = { taskId: task.id, arm, trial, skipped };
+    const base = { taskId: task.id, arm, trial, skipped, ...(variantId ? { variantId } : {}) };
     let session: McpSession | undefined;
     let trajectory: Trajectory | undefined;
     try {
@@ -167,6 +188,7 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
         maxToolResultChars: suite.agent.max_tool_result_chars,
         effort: suite.agent.effort,
         session: arm === "tools" ? session : undefined,
+        ...(toolOverrides ? { toolOverrides } : {}),
       });
       const assertions = await evaluateAll(graded, {
         prompt,
@@ -206,11 +228,20 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
 
   const taskSummaries: TaskSummary[] = tasks.map((task) => {
     const mine = results.filter((r) => r.taskId === task.id);
-    const tools = summarize(mine.filter((r) => r.arm === "tools"));
+    // Base tools arm excludes variant trials (those have variantId set)
+    const tools = summarize(mine.filter((r) => r.arm === "tools" && !r.variantId));
     const baseRuns = mine.filter((r) => r.arm === "baseline");
     const baseline = baseRuns.length ? summarize(baseRuns) : undefined;
     const lift = baseline && tools.rate.n > 0 && baseline.rate.n > 0 ? difference(tools.rate, baseline.rate) : undefined;
-    return { taskId: task.id, prompt: task.prompt, tags: task.tags, tools, baseline, lift };
+    // Summarize each variant arm separately; supplemental, not part of the gate.
+    const variantArms: VariantArmSummary[] | undefined =
+      task.variants && task.variants.length > 0
+        ? task.variants.map((v) => ({
+            variantId: v.id,
+            ...summarize(mine.filter((r) => r.variantId === v.id)),
+          }))
+        : undefined;
+    return { taskId: task.id, prompt: task.prompt, tags: task.tags, tools, baseline, lift, ...(variantArms ? { variantArms } : {}) };
   });
 
   const overallTools = overallArm(taskSummaries, results, "tools");

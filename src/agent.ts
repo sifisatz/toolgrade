@@ -37,6 +37,12 @@ export interface AgentOptions {
   effort?: Effort;
   /** Tools are exposed only when a session is given; the baseline arm passes none. */
   session?: McpSession;
+  /**
+   * Per-tool description overrides for A/B variant arms.
+   * A null description suppresses (hides) that tool from the model entirely.
+   * Only tools explicitly named here are affected; all others are passed unchanged.
+   */
+  toolOverrides?: Record<string, { description: string | null }>;
 }
 
 /** Thrown when a turn fails mid-run; carries the usage already spent so cost stays honest. */
@@ -70,7 +76,17 @@ export function capText(text: string, max: number): string {
 
 export async function runAgent(opts: AgentOptions): Promise<Trajectory> {
   const started = Date.now();
-  const tools = opts.session ? toAnthropicTools(opts.session.tools) : [];
+  const baseTools = opts.session ? toAnthropicTools(opts.session.tools) : [];
+  // Apply description overrides and suppression for variant arms.
+  const tools = opts.toolOverrides
+    ? baseTools
+        .filter((t) => opts.toolOverrides![t.name]?.description !== null)
+        .map((t) => {
+          const ov = opts.toolOverrides![t.name];
+          if (!ov || ov.description === undefined) return t;
+          return { ...t, description: ov.description ?? t.description };
+        })
+    : baseTools;
   const known = new Set(tools.map((t) => t.name));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
   const toolCalls: ToolCallRecord[] = [];
