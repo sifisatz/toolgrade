@@ -60,8 +60,8 @@ describe("toolSurfaceBreakdown", () => {
     const { used, neverCalled } = toolSurfaceBreakdown(r);
     expect(used).toEqual(
       expect.arrayContaining([
-        { name: "search", timesCalled: 2, errors: 0 },
-        { name: "read", timesCalled: 1, errors: 1 },
+        { name: "search", timesCalled: 2, errors: 0, successRate: null },
+        { name: "read", timesCalled: 1, errors: 1, successRate: null },
       ]),
     );
     expect(neverCalled).toEqual(["delete"]);
@@ -110,7 +110,7 @@ describe("toolSurfaceBreakdown", () => {
       ],
     );
     expect(toolSurfaceBreakdown(r).used).toEqual([
-      { name: "search", timesCalled: 3, errors: 0 },
+      { name: "search", timesCalled: 3, errors: 0, successRate: 1 },
     ]);
   });
 });
