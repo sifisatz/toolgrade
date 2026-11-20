@@ -2,6 +2,12 @@ packages:
   - web
   - benchmark
 
+overrides:
+  # Socket-vetted drop-in replacement (es-define-property is a transitive dep of the unused
+  # server half of @modelcontextprotocol/sdk, via express); flagged by Socket as "optimized
+  # override available", not a vulnerability.
+  es-define-property: npm:@socketregistry/es-define-property@^1.0.7
+
 allowBuilds:
   esbuild: true
   sharp: false
