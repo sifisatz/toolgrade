@@ -15,6 +15,7 @@ import { OpenAICompatibleProvider } from "./providers/openai.js";
 import type { ModelProvider } from "./providers/types.js";
 import { formatComparison, formatLint, formatMarkdown, formatTerminal } from "./report.js";
 import { runSuite, type RunReport } from "./runner.js";
+import { lintSuiteValidity } from "./suite-lint.js";
 import { detectGitMeta, fetchBaseline, uploadReport } from "./upload.js";
 
 const EXIT_GATE_FAILED = 1;
@@ -144,6 +145,13 @@ program
       console.log(`\nMCP spec compliance: ${compliancePercent}%`);
       for (const r of complianceResults) {
         if (!r.compliant) console.log(`  ${r.toolName}: missing ${r.missing.join(", ")}`);
+      }
+
+      // Suite task-design validity (same suite the server was loaded from, since tasks are required)
+      const suiteFindings = lintSuiteValidity(suite);
+      if (suiteFindings.length > 0) {
+        console.log("\nSuite validity findings:");
+        for (const f of suiteFindings) console.log(`  ${f.severity === "warn" ? "warn  " : "info  "} ${f.taskId}: ${f.message}`);
       }
 
       console.log(`\nTool surface fingerprint: ${fingerprintSurface(session.tools)}`);
