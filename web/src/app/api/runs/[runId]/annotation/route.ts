@@ -4,8 +4,6 @@ import { getDb } from "@/db/client";
 import { member, organization, projects, runs } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 
-export const runtime = "nodejs";
-
 const AnnotationSchema = z.object({
   rating: z.union([z.literal(1), z.literal(-1), z.null()]),
   note: z.string().max(500).optional(),

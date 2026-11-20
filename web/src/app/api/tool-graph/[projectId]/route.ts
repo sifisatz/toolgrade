@@ -5,8 +5,6 @@ import { member, organization, projects } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { buildProjectToolGraph } from "@/lib/tool-graph";
 
-export const runtime = "nodejs";
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ projectId: string }> },
