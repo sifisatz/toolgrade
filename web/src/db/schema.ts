@@ -204,6 +204,9 @@ export const runs = pgTable(
     /** See lib/usage.ts: one per (task, trial) where every arm that ran for it completed cleanly. */
     billableUnits: integer().notNull().default(0),
     report: jsonb().$type<RunReport>().notNull(),
+    /** 1 = good, -1 = bad, null = not rated */
+    annotationRating: integer("annotation_rating"),
+    annotationNote: text("annotation_note"),
   },
   (t) => [index().on(t.projectId, t.createdAt)],
 );

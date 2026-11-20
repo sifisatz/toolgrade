@@ -41,6 +41,7 @@ export const runSummaryColumns = {
   branch: runs.branch,
   commit: runs.commit,
   commitMessage: runs.commitMessage,
+  annotationRating: runs.annotationRating,
 };
 
 export interface RunFilters {

@@ -1,4 +1,9 @@
-import { GitBranch, GitCommitHorizontal } from "lucide-react";
+import {
+  GitBranch,
+  GitCommitHorizontal,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import Link from "next/link";
 import { DemoBadge, GateBadge, Lift } from "@/components/status";
 import {
@@ -29,6 +34,9 @@ export function RunsTable({
             95% CI
           </TableHead>
           <TableHead className="text-right">Lift</TableHead>
+          <TableHead className="hidden sm:table-cell">
+            <span className="sr-only">Rating</span>
+          </TableHead>
           <TableHead>Gate</TableHead>
           <TableHead className="hidden lg:table-cell">Model</TableHead>
           <TableHead className="hidden text-right md:table-cell">
@@ -73,6 +81,22 @@ export function RunsTable({
             </TableCell>
             <TableCell className="text-right">
               <Lift value={r.lift} />
+            </TableCell>
+            <TableCell className="hidden sm:table-cell">
+              {r.annotationRating === 1 && (
+                <ThumbsUp
+                  className="size-4 text-status-good"
+                  aria-label="Good"
+                  style={{ fill: "var(--status-good)" }}
+                />
+              )}
+              {r.annotationRating === -1 && (
+                <ThumbsDown
+                  className="size-4 text-destructive"
+                  aria-label="Bad"
+                  style={{ fill: "var(--destructive)" }}
+                />
+              )}
             </TableCell>
             <TableCell>
               <GateBadge passed={r.gatePassed} />

@@ -56,6 +56,7 @@ const runSummaryColumns = {
   branch: runs.branch,
   commit: runs.commit,
   commitMessage: runs.commitMessage,
+  annotationRating: runs.annotationRating,
 };
 
 export type RunSummary = Awaited<ReturnType<typeof listRuns>>["rows"][number];

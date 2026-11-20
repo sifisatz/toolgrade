@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Dumbbell, DumbbellLegend } from "@/components/dumbbell";
 import { PageHeader } from "@/components/page-header";
+import { RunAnnotation } from "@/components/run-annotation";
 import { StatTile } from "@/components/stat-tile";
 import {
   DemoBadge,
@@ -191,6 +192,23 @@ async function RunDetail({
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Your rating</CardTitle>
+            <CardDescription>
+              Rate this run to track quality over time. Only visible to org
+              members.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RunAnnotation
+              runId={run.id}
+              initialRating={run.annotationRating ?? null}
+              initialNote={run.annotationNote ?? null}
+            />
           </CardContent>
         </Card>
 
