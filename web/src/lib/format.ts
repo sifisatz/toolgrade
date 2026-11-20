@@ -48,6 +48,13 @@ export function ms(v: number): string {
   return v < 1000 ? `${Math.round(v)}ms` : `${(v / 1000).toFixed(1)}s`;
 }
 
+/** Relative % change (not percentage points, unlike signedPct): +20% means "20% more", fitting for
+ * a cost or latency delta rather than a rate difference. Mirrors src/report.ts's signedRelPct so
+ * the hosted app and the CLI's terminal/markdown reports read the same way. */
+export function signedRelPct(x: number): string {
+  return `${x >= 0 ? "+" : ""}${Math.round(x * 100)}%`;
+}
+
 export function compact(n: number): string {
   return new Intl.NumberFormat("en-US", {
     notation: "compact",

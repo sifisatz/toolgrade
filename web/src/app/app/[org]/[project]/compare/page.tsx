@@ -7,9 +7,14 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { compareRuns, type ToolSurfaceDiff } from "toolgrade/core";
+import {
+  compareRuns,
+  type TaskComparison,
+  type ToolSurfaceDiff,
+} from "toolgrade/core";
 import { PageHeader } from "@/components/page-header";
 import { Lift, SignificanceBadge } from "@/components/status";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,7 +33,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getProject, getRun, listRuns, type RunSummary } from "@/lib/data";
-import { pct, shortDate, shortSha, signedPct } from "@/lib/format";
+import {
+  pct,
+  shortDate,
+  shortSha,
+  signedPct,
+  signedRelPct,
+} from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +83,15 @@ async function Compare({
   ]);
   const cmp =
     head && before ? compareRuns(before.report, head.report) : undefined;
+  // Infra-rejected trials (rate-limit/budget/policy, see TrialResult.outcome in the CLI) are
+  // excluded from the pass rate by the core package before it even reaches `tools.rate` - look
+  // them up per task from the raw reports so the comparison can say how many were dropped.
+  const beforeInfra = new Map(
+    before?.report.tasks.map((t) => [t.taskId, t.tools.infra ?? 0]) ?? [],
+  );
+  const headInfra = new Map(
+    head?.report.tasks.map((t) => [t.taskId, t.tools.infra ?? 0]) ?? [],
+  );
   // A run picked by URL may be older than the listed window; keep it selectable so the form
   // never silently submits a different run.
   const options = [...runs];
@@ -199,33 +219,54 @@ async function Compare({
                     <TableHead className="text-right">After</TableHead>
                     <TableHead className="text-right">Change</TableHead>
                     <TableHead>Verdict</TableHead>
+                    <TableHead>Cost / latency</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cmp.tasks.map((t) => (
-                    <TableRow
-                      key={t.taskId}
-                      className={cn(
-                        t.significance === "worse" && "bg-status-critical/5",
-                      )}
-                    >
-                      <TableCell className="font-mono text-xs font-medium">
-                        {t.taskId}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {pct(t.before)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {pct(t.after)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Lift value={t.diff.delta} />
-                      </TableCell>
-                      <TableCell>
-                        <SignificanceBadge value={t.significance} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {cmp.tasks.map((t) => {
+                    const infra =
+                      (beforeInfra.get(t.taskId) ?? 0) +
+                      (headInfra.get(t.taskId) ?? 0);
+                    return (
+                      <TableRow
+                        key={t.taskId}
+                        className={cn(
+                          t.significance === "worse" && "bg-status-critical/5",
+                        )}
+                      >
+                        <TableCell className="font-mono text-xs font-medium">
+                          {t.taskId}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {pct(t.before)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {pct(t.after)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Lift value={t.diff.delta} />
+                          {infra > 0 && (
+                            <div className="mt-1 text-right text-[11px] text-muted-foreground">
+                              {infra} trial{infra === 1 ? "" : "s"} excluded as
+                              infra failures
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <SignificanceBadge value={t.significance} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5">
+                            <RegressionBadge label="cost" delta={t.costDelta} />
+                            <RegressionBadge
+                              label="latency"
+                              delta={t.durationDelta}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -263,6 +304,37 @@ function RunSelect({
         ))}
       </select>
     </label>
+  );
+}
+
+// `RegressionDelta` itself isn't re-exported from "toolgrade/core" (only via the compare.ts
+// module, which has no package subpath) - derive it from the already-exported TaskComparison
+// shape instead of reaching past the package's public surface.
+type RegressionDelta = NonNullable<TaskComparison["costDelta"]>;
+
+/** Cost/latency regression chip for one task row. Omitted entirely when `delta` is null (either
+ * run's cost/duration for this task is missing or zero - never shown as "N/A" clutter). No
+ * pass/fail verdict: the hosted app has no configured `--gate-cost-regression`/
+ * `--gate-latency-regression` threshold (that only exists as a CLI flag passed to
+ * `checkRegressionGate`), so this shows the raw relative delta instead of guessing one. */
+function RegressionBadge({
+  label,
+  delta,
+}: {
+  label: string;
+  delta: RegressionDelta | null;
+}) {
+  if (!delta) return null;
+  const tone =
+    delta.deltaPct <= 0
+      ? "border-status-good/30 bg-status-good/10 text-status-good"
+      : delta.deltaPct >= 0.2
+        ? "border-status-critical/30 bg-status-critical/10 text-status-critical"
+        : "border-status-warning/30 bg-status-warning/10 text-status-warning";
+  return (
+    <Badge variant="outline" className={cn("text-[10px]", tone)}>
+      {label} {signedRelPct(delta.deltaPct)}
+    </Badge>
   );
 }
 
