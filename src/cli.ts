@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { createRequire } from "node:module";
 import { Command, InvalidArgumentError } from "commander";
 import { checkRegressionGate, compareRuns } from "./compare.js";
 import { loadSuite } from "./config.js";
@@ -33,10 +34,13 @@ const positivePct = (v: string) => {
   return n;
 };
 
+// Read once from package.json so this can't drift from the published version again.
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 const program = new Command()
   .name("toolgrade")
   .description("Eval-first quality gates for MCP servers: does your tool surface beat a no-tool baseline?")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("run")

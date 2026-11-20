@@ -2,9 +2,12 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { cp, mkdtemp, realpath, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isStdio, type ServerSpec, type StdioServerSpec } from "./config.js";
+
+const { version: packageVersion } = createRequire(import.meta.url)("../package.json") as { version: string };
 
 export interface McpToolAnnotations {
   title?: string;
@@ -54,7 +57,7 @@ async function prepareTrialDir(server: StdioServerSpec): Promise<string | undefi
 const fill = (value: string, dir: string | undefined) => (dir ? value.replaceAll(TRIAL_DIR, dir) : value);
 
 export async function openSession(server: ServerSpec): Promise<McpSession> {
-  const client = new Client({ name: "toolgrade", version: "0.1.0" });
+  const client = new Client({ name: "toolgrade", version: packageVersion });
   const trialDir = isStdio(server) ? await prepareTrialDir(server) : undefined;
   const cleanup = async () => {
     if (trialDir) await rm(trialDir, { recursive: true, force: true });
