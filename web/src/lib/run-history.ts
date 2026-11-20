@@ -23,6 +23,7 @@ export const runSummaryColumns = {
   id: runs.id,
   createdAt: runs.createdAt,
   source: runs.source,
+  suite: runs.suite,
   provider: runs.provider,
   agentModel: runs.agentModel,
   trialsPerTask: runs.trialsPerTask,

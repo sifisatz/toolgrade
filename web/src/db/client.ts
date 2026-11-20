@@ -8,6 +8,7 @@ import {
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -15,6 +16,29 @@ import * as schema from "./schema";
 export type Db = PgliteDatabase<typeof schema>;
 
 const migrationsFolder = join(process.cwd(), "drizzle");
+
+/**
+ * True when PGlite must not be used as a fallback: Vercel's filesystem (and any in-memory state)
+ * does not survive past a single invocation, and any other production host would silently run an
+ * unmigrated, single-process, throwaway DB instead of the real one - either way, falling back
+ * would silently discard every write. Checked on two signals, both only at actual runtime:
+ * VERCEL_ENV catches Vercel specifically (NODE_ENV there is "production" even in preview deploys,
+ * so it can't tell preview from prod by itself); plain NODE_ENV catches every other host
+ * (`next start`, Docker, Railway, Fly, bare Node). `next build`'s static-generation pass also runs
+ * under NODE_ENV=production (CI builds this app without DATABASE_URL, relying on the PGlite
+ * fallback to prerender), so NEXT_PHASE excludes that pass - this must only ever fire against a
+ * server actually serving requests. A pure function of its env snapshot so every signal can be
+ * exercised independently in tests, without depending on how NODE_ENV behaves inside the test
+ * runner itself.
+ */
+export function refusesPgliteFallback(env: {
+  VERCEL_ENV?: string;
+  NODE_ENV?: string;
+  NEXT_PHASE?: string;
+}): boolean {
+  if (env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) return false;
+  return env.VERCEL_ENV === "production" || env.NODE_ENV === "production";
+}
 
 function open(): { db: Db; ready: Promise<void> } {
   const url = process.env.DATABASE_URL;
@@ -36,12 +60,11 @@ function open(): { db: Db; ready: Promise<void> } {
     };
   }
   // Zero-infra local mode: embedded Postgres (WASM), single connection, demo/dev only.
-  // Vercel's filesystem (and any in-memory state) does not survive past a single invocation,
-  // so falling back here in production would silently discard every write.
-  if (process.env.VERCEL_ENV === "production") {
+  if (refusesPgliteFallback(process.env)) {
     throw new Error(
       "DATABASE_URL is not set. PGlite is dev/demo-only and loses all data in production " +
-        "(Vercel's filesystem does not persist between invocations) — set DATABASE_URL.",
+        "(Vercel's filesystem does not persist between invocations, and no other host should run " +
+        "it either) — set DATABASE_URL.",
     );
   }
   const dataDir =
