@@ -173,7 +173,9 @@ function toOtlpSpan(span: OtelSpan) {
     spanId: span.spanId,
     ...(span.parentSpanId ? { parentSpanId: span.parentSpanId } : {}),
     name: span.name,
-    kind: "SPAN_KIND_INTERNAL",
+    // OTLP JSON encodes enum fields as integers, never the proto enum name string.
+    // SPAN_KIND_INTERNAL = 1 (opentelemetry-proto trace.proto SpanKind).
+    kind: 1,
     startTimeUnixNano: span.startTimeUnixNano,
     endTimeUnixNano: span.endTimeUnixNano,
     attributes: toKeyValues(span.attributes),

@@ -141,7 +141,7 @@ describe("writeOtelExport", () => {
       const spans = rs.scopeSpans[0].spans;
       expect(spans.length).toBeGreaterThan(0);
       for (const s of spans) {
-        expect(s.kind).toBe("SPAN_KIND_INTERNAL");
+        expect(s.kind).toBe(1); // SPAN_KIND_INTERNAL as an OTLP JSON integer enum
         expect(typeof s.traceId).toBe("string");
         expect(s.traceId).toMatch(/^[0-9a-f]{32}$/);
         expect(s.spanId).toMatch(/^[0-9a-f]{16}$/);
