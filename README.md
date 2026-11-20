@@ -107,9 +107,12 @@ ToolGrade is there to measure - and a small judge is less reliable on `llm` asse
 ## Platform (dashboard + ingestion API)
 
 `web/` is the hosted side: run history with trend charts, per-task drill-down into every trial's
-tool calls, run-vs-run regression compare, and per-project API keys for CI uploads
-(`toolgrade run ... --upload <url>` or `toolgrade upload <report.json>`). It runs locally with no
-infrastructure - see [web/README.md](web/README.md), the stack decision in
+tool calls (including which tool got called instead of the one a task expected), run-vs-run
+compare (pass-rate significance plus cost/latency regression and infra-failure counts), a model
+matrix, a per-project tool graph (coverage, task x tool co-occurrence, minimal-tool-set savings),
+thumbs-up/down run annotations, a public benchmark leaderboard, and per-project API keys for CI
+uploads (`toolgrade run ... --upload <url>` or `toolgrade upload <report.json>`). It runs locally
+with no infrastructure - see [web/README.md](web/README.md), the stack decision in
 [docs/ADR-001-web-stack.md](docs/ADR-001-web-stack.md), and the security/privacy posture in
 [docs/SECURITY.md](docs/SECURITY.md).
 
@@ -117,11 +120,12 @@ infrastructure - see [web/README.md](web/README.md), the stack decision in
 
 | Command | What it does | Exit code |
 |---|---|---|
-| `run <suite>` | tasks x {tools, baseline} x trials, then the gate. Writes `.toolgrade/runs/<ts>.json` and `latest.json`. `--compare <report>` fails on a significant regression. `--markdown <file>` for PR comments. | 0 pass, 1 gate failed / regressed, 2 error |
-| `init [-- cmd args...]` / `init --url <url>` | Connects to your server and writes `toolgrade.yaml`: one starter task per tool plus a no-tool control task, and lints the tools. Prompts and rubrics are `TODO:` placeholders you must replace - `run` refuses a suite that still has them. | 2 if the file exists (use `--force`) |
-| `inspect <suite>` | Connects, lists tools, lints names/descriptions/parameter docs. | 1 on lint errors |
+| `run <suite>` | tasks x {tools, baseline} x trials, then the gate. Writes `.toolgrade/runs/<ts>.json` and `latest.json`. `--compare <report>`/`--baseline <url>` fails on a significant pass-rate regression; `--gate-cost-regression <pct>` / `--gate-latency-regression <pct>` additionally fail it on a cost or latency regression past that threshold (needs `--compare`/`--baseline`). `--markdown <file>` for PR comments, `--otel-export <file>` to also write the run as OTel GenAI spans (OTLP/JSON) for Jaeger/Langfuse/Phoenix. | 0 pass, 1 gate failed / regressed, 2 error |
+| `init [-- cmd args...]` / `init --url <url>` | Connects to your server and writes `toolgrade.yaml`: a real draft task per tool (prompt + `tool_called` assertion, derived from the tool's own schema, with a destructive-looking tool also getting a placeholder `output_contains` check), plus a no-tool control task. A draft that would trip the suite-validity checks below falls back to a `TODO:` placeholder instead - `run` refuses a suite that still has one. | 2 if the file exists (use `--force`) |
+| `import --from <client>` | Scaffolds a suite from an MCP server already configured in an AI client - `claude-desktop`, `claude-code`, `cursor` or `vscode`. `--detect` just reports which client configs exist on this machine. Reuses the same draft-generation as `init`. | 2 if the file exists (use `--force`) |
+| `inspect <suite>` | Connects, lists tools, and runs every static check with no model calls: name/description/parameter-doc lint, a 0-100 description quality score, MCP spec compliance (annotations, documented params), a safety pass (destructive actions missing `destructiveHint`, prompt-injection-shaped text), and suite-validity findings (near-duplicate tasks, assertions that rely solely on an unfalsifiable LLM judge). | 1 on lint errors |
 | `upload <report> --url <origin>` | Uploads an existing run report to a ToolGrade platform (`TOOLGRADE_API_KEY`). | 2 on failure |
-| `compare <before> <after>` | Statistical comparison of two run reports. | 1 if regressed |
+| `compare <before> <after>` | Statistical comparison of two run reports: pass-rate significance, plus cost and latency deltas per task. | 1 if regressed |
 
 ## Suite file
 
@@ -149,6 +153,13 @@ tasks:
     assert:                                   # a trial passes when every assertion passes
       - { type: tool_called, name: create_note, max_times: 1, args_contains: { title: Offsite } }
       - { type: state, tool: search_notes, args: { query: Offsite agenda }, contains: Offsite agenda }
+    variants:                                 # optional: A/B test tool descriptions on this task
+      - id: terse                             # reported next to the base arm, never gates the run
+        tool_overrides:
+          create_note: { description: "Create a note." }
+      - id: hide-list                         # description: null suppresses a tool for this arm
+        tool_overrides:
+          list_tags: { description: null }
 ```
 
 | Assertion | Passes when |
@@ -175,13 +186,16 @@ score": each task is inspectable evidence (which assertion, what it expected, wh
 happened), the same as any other task.
 
 A trial that does not end normally - `max_turns`, `max_tokens`, `refusal`, context exceeded -
-fails regardless of assertions, and only the last turn's text counts as the answer. Trials that
-error (rate limits, overload, a request that grew too long from tool output) are excluded from
-pass rates, reported separately, and fail the `no_errors` gate check; their spend is kept and
-the total is marked as a lower bound. Configuration-level API errors (bad key, unknown model,
-malformed first request) abort the run instead of producing a meaningless score. Tool results
-are capped at `max_tool_result_chars` before they reach the model, and binary content (images,
-audio, blob resources) is replaced by a placeholder.
+fails regardless of assertions, and only the last turn's text counts as the answer. An error is
+classified `infra` (a 429, a 400 carrying a rate-limit/budget/content-filter/quota message, or a
+connection-level failure) or `fail` (anything else, including a request that grew too long from
+tool output). `infra` trials are excluded from pass rates and from the `no_errors` gate check
+entirely - reported separately as "N trials excluded as infra failures" - so a transient provider
+rejection can't fail the gate the way a real bug would; `fail` trials still count against both.
+Either way their spend is kept and the total is marked as a lower bound. Configuration-level API
+errors (bad key, unknown model, malformed first request) abort the run instead of producing a
+meaningless score. Tool results are capped at `max_tool_result_chars` before they reach the model,
+and binary content (images, audio, blob resources) is replaced by a placeholder.
 
 The LLM judge sees tool calls and the answer inside randomly named tags it is told to treat as
 untrusted data, so an agent or server cannot close the block and rewrite the rubric.
