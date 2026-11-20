@@ -119,7 +119,10 @@ program
     if (o.otelExport) await writeOtelExport(report, o.otelExport);
     console.log(`\nReport: ${file}`);
     if (o.upload) {
-      const uploaded = await uploadReport(o.upload, apiKey!, report, await detectGitMeta());
+      // Raw suite text (not the parsed+resolved Suite from loadSuite) so the uploaded YAML matches
+      // what's on disk; exposed read-only as the toolgrade://runs/{runId}/suite MCP resource.
+      const suiteYaml = await readFile(suitePath, "utf8").catch(() => undefined);
+      const uploaded = await uploadReport(o.upload, apiKey!, report, await detectGitMeta(), fetch, suiteYaml);
       console.log(`Uploaded: ${uploaded.url}`);
     }
 

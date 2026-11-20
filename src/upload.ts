@@ -32,11 +32,11 @@ async function git(cwd: string, ...args: string[]): Promise<string | undefined> 
   }
 }
 
-export async function uploadReport(baseUrl: string, apiKey: string, report: RunReport, meta: RunMeta, fetchFn: typeof fetch = fetch): Promise<UploadResult> {
+export async function uploadReport(baseUrl: string, apiKey: string, report: RunReport, meta: RunMeta, fetchFn: typeof fetch = fetch, suiteYaml?: string): Promise<UploadResult> {
   const res = await fetchFn(`${baseUrl.replace(/\/+$/, "")}/api/v1/runs`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ report, meta }),
+    body: JSON.stringify(suiteYaml !== undefined ? { report, meta, suiteYaml } : { report, meta }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) throw new Error(`upload failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
