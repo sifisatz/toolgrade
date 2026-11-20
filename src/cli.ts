@@ -6,7 +6,7 @@ import { compareRuns } from "./compare.js";
 import { loadSuite } from "./config.js";
 import { fingerprintSurface } from "./fingerprint.js";
 import { generateSuite, type InitServer } from "./init.js";
-import { lintTools } from "./lint.js";
+import { lintToolDescriptions, lintTools } from "./lint.js";
 import { openSession } from "./mcp.js";
 import { AnthropicProvider } from "./providers/anthropic.js";
 import { OpenAICompatibleProvider } from "./providers/openai.js";
@@ -115,6 +115,16 @@ program
       console.log("");
       const issues = lintTools(session.tools);
       console.log(formatLint(issues, session.tools.length));
+      // Description quality scores
+      const qualityResults = lintToolDescriptions(session.tools);
+      if (qualityResults.length > 0) {
+        console.log("\nDescription quality scores (0–100):");
+        for (const r of qualityResults) {
+          const bar = "█".repeat(Math.round(r.score / 10)).padEnd(10, "░");
+          console.log(`  ${r.toolName.padEnd(32)} ${bar} ${r.score}`);
+          for (const issue of r.issues) console.log(`    ⚠ ${issue}`);
+        }
+      }
       console.log(`\nTool surface fingerprint: ${fingerprintSurface(session.tools)}`);
       if (issues.some((i) => i.level === "error")) process.exitCode = EXIT_GATE_FAILED;
     } finally {

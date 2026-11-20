@@ -117,6 +117,20 @@ export function ToolCoverageCard({
                               {t.errors}e
                             </Badge>
                           )}
+                          {t.successRate !== null && (
+                            <Badge
+                              variant="outline"
+                              className={
+                                t.successRate >= 0.75
+                                  ? "border-status-good/40 bg-status-good/10 text-[10px] text-status-good"
+                                  : t.successRate >= 0.5
+                                    ? "border-status-warning/40 bg-status-warning/10 text-[10px] text-status-warning"
+                                    : "border-status-critical/40 bg-status-critical/10 text-[10px] text-status-critical"
+                              }
+                            >
+                              {Math.round(t.successRate * 100)}% win
+                            </Badge>
+                          )}
                           {t.timesCalled}x
                         </span>
                       </div>

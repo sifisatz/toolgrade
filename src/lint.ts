@@ -1,5 +1,98 @@
 import type { McpTool } from "./mcp.js";
 
+// ---------------------------------------------------------------------------
+// Description quality scoring (heuristics inspired by arXiv:2609.10962)
+// ---------------------------------------------------------------------------
+
+export interface DescriptionQualityResult {
+  toolName: string;
+  /** Overall quality score 0–100 (higher is better). */
+  score: number;
+  /** Human-readable issues and suggestions. */
+  issues: string[];
+}
+
+/** Common English action verbs that indicate a well-formed imperative description. */
+const ACTION_VERBS = new Set([
+  "read", "get", "list", "create", "update", "delete", "search", "find", "fetch",
+  "write", "set", "add", "remove", "run", "execute", "call", "send", "post",
+  "check", "query", "insert", "replace", "edit", "move", "copy", "rename",
+  "open", "close", "connect", "disconnect", "start", "stop", "reset", "clear",
+]);
+
+/**
+ * Score the description quality of each tool on a 0–100 scale.
+ * Based on heuristics derived from "What a Random Draw from the MCP Registry Contains"
+ * (arXiv:2609.10962): actionable first word, appropriate length, parameter mentions,
+ * no redundancy with the tool name, and complete sentences.
+ *
+ * Scoring rubric (additive, capped at 100):
+ *   - Base score: 50
+ *   - Description length penalties/bonuses: <20 chars = -30, 20–50 = -10, 50–200 = 0, >200 = -5
+ *   - Starts with an action verb: +20
+ *   - Contains parameter hints (key parameter name in description): +15
+ *   - No duplicate words with tool name: +10
+ *   - Ends with terminal punctuation (complete sentence): +5
+ */
+export function lintToolDescriptions(tools: McpTool[]): DescriptionQualityResult[] {
+  return tools.map((tool) => {
+    const issues: string[] = [];
+    let score = 50;
+
+    const desc = tool.description?.trim() ?? "";
+    const descLen = desc.length;
+
+    // --- Length ---
+    if (descLen < 20) {
+      score -= 30;
+      issues.push(`description too short (${descLen} chars); aim for 50–200 chars that explain what, when, and what it returns`);
+    } else if (descLen < 50) {
+      score -= 10;
+      issues.push(`description is brief (${descLen} chars); consider adding when to use this tool and what it returns`);
+    } else if (descLen > 200) {
+      score -= 5;
+      issues.push(`description is long (${descLen} chars); consider trimming to 50–200 chars to reduce token overhead`);
+    }
+
+    // --- Starts with action verb ---
+    const firstWord = desc.split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
+    if (firstWord && ACTION_VERBS.has(firstWord)) {
+      score += 20;
+    } else if (firstWord) {
+      issues.push(`description should start with an action verb (Read, Get, List, Create, …); starts with "${firstWord}"`);
+    }
+
+    // --- Parameter hints ---
+    const paramNames = Object.keys((tool.inputSchema.properties ?? {}) as Record<string, unknown>);
+    const descLower = desc.toLowerCase();
+    const mentionedParams = paramNames.filter((p) => descLower.includes(p.toLowerCase()));
+    if (paramNames.length > 0 && mentionedParams.length > 0) {
+      score += 15;
+    } else if (paramNames.length > 0) {
+      issues.push(`consider mentioning key parameters (${paramNames.slice(0, 3).join(", ")}) in the description`);
+    }
+
+    // --- No duplicate words with tool name ---
+    const toolWords = new Set(tool.name.toLowerCase().split(/[_-]+/).filter((w) => w.length > 2));
+    const descWords = descLower.split(/\W+/);
+    const redundant = descWords.filter((w) => w.length > 2 && toolWords.has(w));
+    if (redundant.length === 0) {
+      score += 10;
+    } else {
+      issues.push(`description repeats word(s) from the tool name (${[...new Set(redundant)].join(", ")}); use synonyms for clarity`);
+    }
+
+    // --- Ends with terminal punctuation ---
+    if (/[.!?]$/.test(desc)) {
+      score += 5;
+    } else if (desc.length > 0) {
+      issues.push("description does not end with punctuation; use a complete sentence for consistency");
+    }
+
+    return { toolName: tool.name, score: Math.max(0, Math.min(100, score)), issues };
+  });
+}
+
 export interface LintIssue {
   tool: string;
   level: "error" | "warn";
