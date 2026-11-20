@@ -61,6 +61,84 @@ export function significance(d: Difference): Significance {
   return "not_significant";
 }
 
+/**
+ * Unbiased pass@k estimator (Chen et al. 2021, "Evaluating Large Language Models Trained on Code").
+ * More accurate than naive pass rate when k < n and c/n is high.
+ * Returns the probability that at least one of k random samples passes.
+ * When k=1, reduces to c/n (identical to naive).
+ *
+ * @param n - total trials
+ * @param c - passing trials
+ * @param k - samples to draw (k <= n)
+ */
+export function passAtK(n: number, c: number, k: number): number {
+  if (k > n) throw new RangeError(`k=${k} > n=${n}`);
+  if (c === 0) return 0;
+  if (c === n) return 1;
+  // When there are fewer failures than samples to draw, at least one must be a pass.
+  if (n - c < k) return 1;
+  // 1 - C(n-c, k) / C(n, k)
+  // Computed in log space to avoid overflow for large n
+  let logNumer = 0;
+  let logDenom = 0;
+  for (let i = 0; i < k; i++) {
+    logNumer += Math.log(n - c - i);
+    logDenom += Math.log(n - i);
+  }
+  return 1 - Math.exp(logNumer - logDenom);
+}
+
+/** pass@1 = c/n (naive rate). Provided for symmetry with pass3/pass5. */
+export const pass1 = (n: number, c: number): number => passAtK(n, c, 1);
+/** pass@3 unbiased estimator. Requires n >= 3. */
+export const pass3 = (n: number, c: number): number => passAtK(n, c, 3);
+/** pass@5 unbiased estimator. Requires n >= 5. */
+export const pass5 = (n: number, c: number): number => passAtK(n, c, 5);
+
+// ---------------------------------------------------------------------------
+// Trial-quality metrics (avoid importing from runner.ts to prevent cycles)
+// ---------------------------------------------------------------------------
+
+/** Minimal shape from TrialResult needed by the metrics below. */
+export interface TrialLike {
+  error?: string;
+  passed: boolean;
+  trajectory?: { toolCalls: Array<{ name: string }> };
+}
+
+/**
+ * Fraction of non-errored trials where the agent called at least one tool.
+ * Low value = agent ignoring tools entirely despite having them.
+ */
+export function toolEngagementRate(trials: TrialLike[]): number {
+  const graded = trials.filter((t) => !t.error);
+  if (graded.length === 0) return 0;
+  const engaged = graded.filter((t) => (t.trajectory?.toolCalls.length ?? 0) > 0).length;
+  return engaged / graded.length;
+}
+
+/**
+ * For each tool name: ratio of trials that used it and PASSED to all trials that used it.
+ * "When this tool was called, how often did the trial succeed?"
+ * Returns map of tool_name → rate (0-1). Only includes tools called in ≥2 trials.
+ */
+export function perToolSuccessRate(trials: TrialLike[]): Record<string, number> {
+  const graded = trials.filter((t) => !t.error && t.trajectory !== undefined);
+  const toolData = new Map<string, { calls: number; passes: number }>();
+  for (const trial of graded) {
+    const usedTools = new Set((trial.trajectory?.toolCalls ?? []).map((tc) => tc.name));
+    for (const name of usedTools) {
+      const existing = toolData.get(name) ?? { calls: 0, passes: 0 };
+      toolData.set(name, { calls: existing.calls + 1, passes: existing.passes + (trial.passed ? 1 : 0) });
+    }
+  }
+  const result: Record<string, number> = {};
+  for (const [name, { calls, passes }] of toolData) {
+    if (calls >= 2) result[name] = passes / calls;
+  }
+  return result;
+}
+
 /** Two-sided z for family-wise alpha split over k comparisons (Bonferroni). */
 export function bonferroniZ(k: number, alpha = 0.05): number {
   return probit(1 - alpha / (2 * Math.max(1, k)));
