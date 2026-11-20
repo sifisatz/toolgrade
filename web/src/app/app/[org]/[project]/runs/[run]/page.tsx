@@ -17,8 +17,8 @@ import {
   Lift,
   SignificanceBadge,
 } from "@/components/status";
+import { ToolCoverageCard } from "@/components/tool-coverage-card";
 import { TrialSheet } from "@/components/trial-sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -272,81 +272,13 @@ async function RunDetail({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              Tool surface
-              {r.toolSurface.fingerprint && (
-                <span
-                  className="font-mono text-xs font-normal text-muted-foreground"
-                  title="A hash of every tool's name, description and schema - changes whenever any of those do, or a tool is added/removed."
-                >
-                  {r.toolSurface.fingerprint}
-                </span>
-              )}
-            </CardTitle>
-            <CardDescription>
-              {r.toolSurface.count} tool{r.toolSurface.count === 1 ? "" : "s"}{" "}
-              exposed, ~{r.toolSurface.approxTokens} schema tokens. Being called
-              doesn&apos;t mean a tool is useful - see the lift above - but a
-              tool no trial ever called this run is worth a second look.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
-                Called this run
-              </div>
-              {toolSurface.used.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No tool calls recorded.
-                </p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {toolSurface.used.map((t) => (
-                    <li
-                      key={t.name}
-                      className="flex items-center justify-between gap-2 text-sm"
-                    >
-                      <span className="truncate font-mono text-xs">
-                        {t.name}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
-                        {t.errors > 0 && (
-                          <Badge variant="destructive">
-                            {t.errors} error{t.errors === 1 ? "" : "s"}
-                          </Badge>
-                        )}
-                        {t.timesCalled}x
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
-                Never called
-              </div>
-              {toolSurface.neverCalled.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Every exposed tool was called at least once.
-                </p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {toolSurface.neverCalled.map((name) => (
-                    <li
-                      key={name}
-                      className="truncate font-mono text-xs text-muted-foreground"
-                    >
-                      {name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <ToolCoverageCard
+          fingerprint={r.toolSurface.fingerprint}
+          total={r.toolSurface.count}
+          approxTokens={r.toolSurface.approxTokens}
+          used={toolSurface.used}
+          neverCalled={toolSurface.neverCalled}
+        />
       </div>
     </>
   );
