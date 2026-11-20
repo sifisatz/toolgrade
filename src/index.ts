@@ -19,4 +19,5 @@ export type { ModelProvider, TurnRequest, TurnResponse } from "./providers/types
 export { formatMarkdown, formatTerminal } from "./report.js";
 export { runSuite, FatalRunError, type ArmSummary, type RunOptions, type RunReport, type TrialResult, type VariantArmSummary } from "./runner.js";
 export { difference, pass1, pass3, pass5, passAtK, perToolSuccessRate, rate, significance, toolEngagementRate, wilson, type TrialLike } from "./stats.js";
+export { lintSuiteValidity, type SuiteFinding } from "./suite-lint.js";
 export { detectGitMeta, uploadReport, type RunMeta, type UploadResult } from "./upload.js";
