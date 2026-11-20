@@ -1,5 +1,12 @@
-import type { RunReport } from "./runner.js";
+import type { GateCheck, RunReport } from "./runner.js";
 import { bonferroniZ, difference, rate, significance, taskLevelRate, type Difference, type Significance } from "./stats.js";
+
+/** current/baseline plus the relative change between them, as a fraction (0.2 = +20%). */
+export interface RegressionDelta {
+  current: number;
+  baseline: number;
+  deltaPct: number;
+}
 
 export interface TaskComparison {
   taskId: string;
@@ -8,6 +15,10 @@ export interface TaskComparison {
   diff: Difference;
   /** Bonferroni-corrected across all compared tasks, so big suites do not cry wolf. */
   significance: Significance;
+  /** null when either run's cost for this task is missing or zero - never NaN/Infinity. */
+  costDelta: RegressionDelta | null;
+  /** null when either run's mean duration for this task is missing or zero. */
+  durationDelta: RegressionDelta | null;
 }
 
 export interface ToolSurfaceDiff {
@@ -43,8 +54,15 @@ function diffToolSurface(before: RunReport, after: RunReport): ToolSurfaceDiff {
   return { changed: added.length > 0 || removed.length > 0 || changedTools.length > 0, added, removed, changedTools };
 }
 
+/** null rather than NaN/Infinity when either side is missing or zero - a 0 baseline has no meaningful % change. */
+function regressionDelta(current: number | null | undefined, baseline: number | null | undefined): RegressionDelta | null {
+  if (current === null || current === undefined || !current) return null;
+  if (baseline === null || baseline === undefined || !baseline) return null;
+  return { current, baseline, deltaPct: (current - baseline) / baseline };
+}
+
 export function compareRuns(before: RunReport, after: RunReport): Comparison {
-  const graded = (r: RunReport) => new Map(r.tasks.filter((t) => t.tools.rate.n > 0).map((t) => [t.taskId, t.tools.rate]));
+  const graded = (r: RunReport) => new Map(r.tasks.filter((t) => t.tools.rate.n > 0).map((t) => [t.taskId, t.tools]));
   const b = graded(before);
   const a = graded(after);
   const matched = [...a.keys()].filter((id) => b.has(id));
@@ -54,12 +72,20 @@ export function compareRuns(before: RunReport, after: RunReport): Comparison {
   const tasks: TaskComparison[] = matched.map((id) => {
     const prev = b.get(id)!;
     const next = a.get(id)!;
-    const diff = difference(rate(next.passes, next.n, z), rate(prev.passes, prev.n, z));
-    return { taskId: id, before: prev.rate, after: next.rate, diff, significance: significance(diff) };
+    const diff = difference(rate(next.rate.passes, next.rate.n, z), rate(prev.rate.passes, prev.rate.n, z));
+    return {
+      taskId: id,
+      before: prev.rate.rate,
+      after: next.rate.rate,
+      diff,
+      significance: significance(diff),
+      costDelta: regressionDelta(next.costUsd, prev.costUsd),
+      durationDelta: regressionDelta(next.meanDurationMs, prev.meanDurationMs),
+    };
   });
 
-  const beforeRate = taskLevelRate(matched.map((id) => b.get(id)!.rate));
-  const afterRate = taskLevelRate(matched.map((id) => a.get(id)!.rate));
+  const beforeRate = taskLevelRate(matched.map((id) => b.get(id)!.rate.rate));
+  const afterRate = taskLevelRate(matched.map((id) => a.get(id)!.rate.rate));
   const diff = difference(afterRate, beforeRate);
   const overallSig = significance(diff);
 
@@ -73,4 +99,45 @@ export function compareRuns(before: RunReport, after: RunReport): Comparison {
     unmatched,
     toolSurface: diffToolSurface(before, after),
   };
+}
+
+export interface RegressionGateOptions {
+  /** Fail if any matched task's cost rose by more than this percent (e.g. 20 for 20%) vs the baseline run. */
+  maxCostIncreasePct?: number;
+  /** Fail if any matched task's mean duration rose by more than this percent vs the baseline run. */
+  maxLatencyIncreasePct?: number;
+}
+
+/**
+ * Cost/latency regression checks, in the same {name, passed, detail} shape as the suite gate checks
+ * in runner.ts, so `toolgrade run --compare/--baseline --gate-cost-regression ...` fails the run the
+ * same way `suite.gate` does rather than through a parallel pass/fail mechanism.
+ */
+export function checkRegressionGate(cmp: Comparison, opts: RegressionGateOptions): GateCheck[] {
+  const checks: GateCheck[] = [];
+  if (opts.maxCostIncreasePct !== undefined) {
+    checks.push(regressionCheck("gate_cost_regression", "cost", cmp.tasks, (t) => t.costDelta, opts.maxCostIncreasePct));
+  }
+  if (opts.maxLatencyIncreasePct !== undefined) {
+    checks.push(regressionCheck("gate_latency_regression", "latency", cmp.tasks, (t) => t.durationDelta, opts.maxLatencyIncreasePct));
+  }
+  return checks;
+}
+
+function regressionCheck(
+  name: string,
+  label: string,
+  tasks: TaskComparison[],
+  pick: (t: TaskComparison) => RegressionDelta | null,
+  maxIncreasePct: number,
+): GateCheck {
+  const threshold = maxIncreasePct / 100;
+  const offenders = tasks
+    .map((t) => ({ taskId: t.taskId, delta: pick(t) }))
+    .filter((x): x is { taskId: string; delta: RegressionDelta } => x.delta !== null && x.delta.deltaPct > threshold);
+  const passed = offenders.length === 0;
+  const detail = passed
+    ? `no task's ${label} increased more than ${maxIncreasePct}% vs the baseline run`
+    : `${label} regressed beyond ${maxIncreasePct}%: ${offenders.map((o) => `${o.taskId} +${Math.round(o.delta.deltaPct * 100)}%`).join(", ")}`;
+  return { name, passed, detail };
 }

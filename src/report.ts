@@ -1,12 +1,16 @@
 import pc from "picocolors";
-import type { Comparison } from "./compare.js";
+import type { Comparison, RegressionDelta } from "./compare.js";
 import type { LintIssue } from "./lint.js";
-import type { ArmSummary, OverallArm, RunReport } from "./runner.js";
+import type { ArmSummary, GateCheck, OverallArm, RunReport } from "./runner.js";
 import { pct, signedPct, type Difference, type Rate } from "./stats.js";
 
 const ci = (r: Rate) => `${pct(r.low)}-${pct(r.high)}`;
 const ciDiff = (d: Difference) => `${signedPct(d.low)}..${signedPct(d.high)}`;
 const usd = (v: number | null) => (v === null ? "n/a" : `$${v.toFixed(v < 1 ? 4 : 2)}`);
+// Relative % change (not percentage points, unlike signedPct): +20% means "20% more", fitting for
+// a cost or latency delta rather than a rate difference.
+const signedRelPct = (x: number) => `${x >= 0 ? "+" : ""}${Math.round(x * 100)}%`;
+const regressionCell = (d: RegressionDelta | null, label: string) => (d ? ` ${label} ${colorRegression(d.deltaPct, signedRelPct(d.deltaPct))}` : "");
 const rateCell = (a: ArmSummary) => `${pct(a.rate.rate)} (${a.rate.passes}/${a.rate.n})${a.errors ? ` +${a.errors} err` : ""}`;
 const overallCell = (a: OverallArm) => `${pct(a.rate.rate)} over ${a.rate.n} tasks (${a.trials.passed}/${a.trials.graded} trials)`;
 const cost = (r: RunReport) => `${usd(r.totalCostUsd)}${r.costIsLowerBound ? " (lower bound: some trials errored)" : ""}`;
@@ -96,14 +100,18 @@ export function formatMarkdown(r: RunReport, cmp?: Comparison): string {
     }
     out.push(`Pass rate ${pct(cmp.overall.before)} -> ${pct(cmp.overall.after)} (${signedPct(cmp.overall.diff.delta)}, 95% CI ${ciDiff(cmp.overall.diff)}).`);
     const moved = cmp.tasks.filter((t) => t.significance !== "not_significant");
-    for (const t of moved) out.push(`- \`${t.taskId}\`: ${pct(t.before)} -> ${pct(t.after)} (${t.significance})`);
+    for (const t of moved) {
+      const cost = t.costDelta ? `, cost ${signedRelPct(t.costDelta.deltaPct)}` : "";
+      const latency = t.durationDelta ? `, latency ${signedRelPct(t.durationDelta.deltaPct)}` : "";
+      out.push(`- \`${t.taskId}\`: ${pct(t.before)} -> ${pct(t.after)} (${t.significance})${cost}${latency}`);
+    }
   }
   out.push("");
   out.push(`Cost: ${cost(r)}. Gate: ${r.gate.checks.map((c) => `${c.name} ${c.passed ? "ok" : "FAILED"}`).join(", ")}.`);
   return out.join("\n");
 }
 
-export function formatComparison(cmp: Comparison): string {
+export function formatComparison(cmp: Comparison, checks: GateCheck[] = []): string {
   const lines = [pc.bold(`Comparison: ${cmp.verdict.replaceAll("_", " ")}`)];
   if (cmp.toolSurface.changed) {
     lines.push(pc.yellow("tool surface changed since the previous run - treat this comparison with caution"));
@@ -115,9 +123,15 @@ export function formatComparison(cmp: Comparison): string {
   lines.push(pc.dim("per-task verdicts are Bonferroni-corrected"));
   for (const t of cmp.tasks) {
     const tag = t.significance === "worse" ? pc.red("worse") : t.significance === "better" ? pc.green("better") : pc.dim("~");
-    lines.push(`  ${t.taskId.padEnd(28)} ${pct(t.before).padStart(4)} -> ${pct(t.after).padStart(4)}  ${tag}`);
+    const cost = regressionCell(t.costDelta, "cost");
+    const latency = regressionCell(t.durationDelta, "latency");
+    lines.push(`  ${t.taskId.padEnd(28)} ${pct(t.before).padStart(4)} -> ${pct(t.after).padStart(4)}  ${tag}${cost}${latency}`);
   }
   if (cmp.unmatched.length) lines.push(pc.yellow(`not in both runs: ${cmp.unmatched.join(", ")}`));
+  if (checks.length) {
+    lines.push("");
+    for (const c of checks) lines.push(`${c.passed ? pc.green("PASS") : pc.red("FAIL")} ${c.name}: ${c.detail}`);
+  }
   return lines.join("\n");
 }
 
@@ -132,6 +146,11 @@ function colorRate(rate: number, text: string): string {
 
 function colorLift(delta: number, text: string): string {
   return delta > 0 ? pc.green(text) : delta < 0 ? pc.red(text) : pc.dim(text);
+}
+
+/** Opposite sense from colorLift: for cost/latency, an increase is bad and a decrease is good. */
+function colorRegression(deltaPct: number, text: string): string {
+  return deltaPct > 0 ? pc.red(text) : deltaPct < 0 ? pc.green(text) : pc.dim(text);
 }
 
 // Pads on visible width so ANSI colour codes do not break alignment.
