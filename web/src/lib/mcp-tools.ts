@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { RunReport } from "toolgrade/core";
 import { type Comparison, compareRuns } from "toolgrade/core";
 import type { Db } from "@/db/client";
 import { runs } from "@/db/schema";
@@ -222,6 +223,41 @@ export async function getToolUsage(db: Db, projectId: string, runId?: string) {
     neverCalled: !callCount.has(name),
   }));
   return { found: true as const, runId: id, tools };
+}
+
+/**
+ * The complete RunReport for a run, scoped to projectId exactly like every other lookup here -
+ * backs the toolgrade://runs/{runId}/report MCP resource (full-fidelity, unlike
+ * getFailingAssertions/getToolUsage's curated slices of the same jsonb column).
+ */
+export async function getRunReport(
+  db: Db,
+  projectId: string,
+  runId: string,
+): Promise<{ found: false } | { found: true; report: RunReport }> {
+  const row = await loadReport(db, projectId, runId);
+  if (!row) return { found: false };
+  return { found: true, report: row.report };
+}
+
+/**
+ * The suite file's raw YAML text for a run, scoped to projectId - backs the
+ * toolgrade://runs/{runId}/suite MCP resource. `suiteYaml: null` means the run exists (and belongs
+ * to this project) but predates the CLI sending its suite text; `found: false` means no such run
+ * in this project at all. Callers must tell the two apart rather than treating both as an error.
+ */
+export async function getSuiteYaml(
+  db: Db,
+  projectId: string,
+  runId: string,
+): Promise<{ found: false } | { found: true; suiteYaml: string | null }> {
+  const [row] = await db
+    .select({ id: runs.id, suiteYaml: runs.suiteYaml })
+    .from(runs)
+    .where(and(eq(runs.projectId, projectId), eq(runs.id, runId)))
+    .limit(1);
+  if (!row) return { found: false };
+  return { found: true, suiteYaml: row.suiteYaml };
 }
 
 export async function listRunsPage(

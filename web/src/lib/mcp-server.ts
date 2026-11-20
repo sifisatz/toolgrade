@@ -1,5 +1,9 @@
 import "server-only";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import {
@@ -8,6 +12,8 @@ import {
   getFailingAssertions,
   getLatestRun,
   getLiftTrend,
+  getRunReport,
+  getSuiteYaml,
   getToolUsage,
   listRunsPage,
 } from "@/lib/mcp-tools";
@@ -157,6 +163,79 @@ export function createToolGradeMcpServer(db: Db, projectId: string): McpServer {
           cursor: decodeRunCursor(cursor),
         }),
       ),
+  );
+
+  // --- Resources: addressable by URI rather than returned from a tool call, each scoped to
+  // projectId with the same and(eq(projectId), eq(id)) check every tool above already uses, so a
+  // runId for another project's run 404s exactly like it does for the tools. No `list` callback
+  // (undefined, required by ResourceTemplate to make skipping listing explicit): a project can have
+  // thousands of runs and there is no useful "list every resource" page to offer a client here.
+
+  server.registerResource(
+    "run_report",
+    new ResourceTemplate("toolgrade://runs/{runId}/report", {
+      list: undefined,
+    }),
+    {
+      title: "Full run report",
+      description:
+        "The complete RunReport JSON for a run: every task's results and every trial's tool calls, not just a curated slice.",
+      mimeType: "application/json",
+    },
+    async (uri, { runId }) => {
+      const result = await getRunReport(db, projectId, String(runId));
+      if (!result.found) {
+        throw new McpError(ErrorCode.InvalidParams, `run not found: ${runId}`);
+      }
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify(result.report),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerResource(
+    "run_suite",
+    new ResourceTemplate("toolgrade://runs/{runId}/suite", {
+      list: undefined,
+    }),
+    {
+      title: "Run's suite YAML",
+      description:
+        "The suite file's raw YAML text as it was run, when the uploading CLI sent it. Runs uploaded before this feature shipped return a clear not-available notice instead of an error or empty text.",
+      mimeType: "application/x-yaml",
+    },
+    async (uri, { runId }) => {
+      const result = await getSuiteYaml(db, projectId, String(runId));
+      if (!result.found) {
+        throw new McpError(ErrorCode.InvalidParams, `run not found: ${runId}`);
+      }
+      if (result.suiteYaml === null) {
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: "text/plain",
+              text: "suite YAML not available: this run was uploaded before ToolGrade started storing the suite file's text.",
+            },
+          ],
+        };
+      }
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "application/x-yaml",
+            text: result.suiteYaml,
+          },
+        ],
+      };
+    },
   );
 
   return server;

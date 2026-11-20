@@ -11,6 +11,8 @@ import {
   getFailingAssertions,
   getLatestRun,
   getLiftTrend,
+  getRunReport,
+  getSuiteYaml,
   getToolUsage,
   listRunsPage,
 } from "@/lib/mcp-tools";
@@ -172,6 +174,60 @@ describe("mcp-tools", () => {
     expect(page2.runs).toHaveLength(1);
     expect(page2.runs[0]?.runId).toBe(runA.id);
     expect(page2.hasMore).toBe(false);
+  });
+
+  it("getRunReport returns the full report scoped to the project", async () => {
+    const db = await getDb();
+    const result = await getRunReport(db, projectId, runB.id);
+    expect(result.found).toBe(true);
+    if (!result.found) throw new Error("unreachable");
+    expect(result.report.trials.length).toBe(report.trials.length);
+    expect(result.report.suite).toBe(report.suite);
+  });
+
+  it("getRunReport reports not found for a run in another project", async () => {
+    const db = await getDb();
+    const [org] = await db
+      .insert(organization)
+      .values({ slug: "mcp-tools-other", name: "Other" })
+      .returning();
+    const [project] = await db
+      .insert(projects)
+      .values({ orgId: org!.id, slug: "other", name: "Other" })
+      .returning();
+    const result = await getRunReport(db, project!.id, runB.id);
+    expect(result.found).toBe(false);
+  });
+
+  it("getSuiteYaml returns null, not an error, when the run predates storing it", async () => {
+    const db = await getDb();
+    const result = await getSuiteYaml(db, projectId, runB.id);
+    expect(result.found).toBe(true);
+    if (!result.found) throw new Error("unreachable");
+    expect(result.suiteYaml).toBeNull();
+  });
+
+  it("getSuiteYaml returns the stored text when the run has it", async () => {
+    const withYaml = await seedRun(projectId, {
+      suite: "notes-suite.yaml",
+      createdAt: new Date("2026-01-03"),
+      suiteYaml: "name: notes-suite\ntasks: []\n",
+    });
+    const db = await getDb();
+    const result = await getSuiteYaml(db, projectId, withYaml.id);
+    expect(result.found).toBe(true);
+    if (!result.found) throw new Error("unreachable");
+    expect(result.suiteYaml).toBe("name: notes-suite\ntasks: []\n");
+  });
+
+  it("getSuiteYaml reports not found for an unknown run", async () => {
+    const db = await getDb();
+    const result = await getSuiteYaml(
+      db,
+      projectId,
+      "00000000-0000-0000-0000-000000000000",
+    );
+    expect(result.found).toBe(false);
   });
 
   it("decodeRunCursor returns undefined for garbage input instead of throwing", () => {
