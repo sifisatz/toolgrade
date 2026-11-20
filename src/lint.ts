@@ -13,7 +13,7 @@ export interface DescriptionQualityResult {
 }
 
 /** Common English action verbs that indicate a well-formed imperative description. */
-const ACTION_VERBS = new Set([
+export const ACTION_VERBS = new Set([
   "read", "get", "list", "create", "update", "delete", "search", "find", "fetch",
   "write", "set", "add", "remove", "run", "execute", "call", "send", "post",
   "check", "query", "insert", "replace", "edit", "move", "copy", "rename",
@@ -103,7 +103,7 @@ export interface SafetyFinding {
   message: string;
 }
 
-const DESTRUCTIVE_VERBS = ["delete", "remove", "drop", "truncate", "wipe", "revoke", "terminate", "kill", "destroy"];
+export const DESTRUCTIVE_VERBS = ["delete", "remove", "drop", "truncate", "wipe", "revoke", "terminate", "kill", "destroy"];
 const WRITE_VERBS = ["create", "update", "set", "write", "insert"];
 const INJECTION_PATTERNS = [/ignore (all )?previous instructions/i, /system\s*:/i, /you are now/i];
 

@@ -156,7 +156,7 @@ export async function scaffoldSuiteFromImport(server: ImportedServer, outputPath
   const initServer: InitServer = { command: server.command, args: server.args, cwd: "." };
   const session = await openSession({ command: server.command, args: server.args, cwd: process.cwd(), env: server.env ?? {} });
   try {
-    await writeFile(outputPath, generateSuite(suiteName, initServer, session.tools));
+    await writeFile(outputPath, generateSuite(suiteName, initServer, session.tools).yaml);
   } finally {
     await session.close();
   }

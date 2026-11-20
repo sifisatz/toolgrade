@@ -7,7 +7,7 @@ import { loadSuite } from "./config.js";
 import { fingerprintSurface } from "./fingerprint.js";
 import { writeOtelExport } from "./export/otel.js";
 import { detectClientConfigs, parseClientConfig, scaffoldSuiteFromImport, type ClientName } from "./import-config.js";
-import { generateSuite, type InitServer } from "./init.js";
+import { formatGenerationSummary, generateSuite, type InitServer } from "./init.js";
 import { lintSpecCompliance, lintToolDescriptions, lintTools, lintToolSafety } from "./lint.js";
 import { openSession } from "./mcp.js";
 import { AnthropicProvider } from "./providers/anthropic.js";
@@ -193,10 +193,12 @@ program
       : { command: cmd!, args, cwd: relative(outDir, process.cwd()) || "." };
     const session = await openSession(o.url ? { url: o.url, headers: {} } : { command: cmd!, args, cwd: process.cwd(), env: {} });
     try {
-      await writeFile(o.out, generateSuite(o.name, server, session.tools));
+      const result = generateSuite(o.name, server, session.tools);
+      await writeFile(o.out, result.yaml);
       console.log(`Wrote ${o.out}: ${session.tools.length} tool task(s) + 1 control task.`);
+      console.log(formatGenerationSummary(result));
       console.log(formatLint(lintTools(session.tools), session.tools.length));
-      console.log(`\nNext: replace the TODO prompts and rubrics, then: toolgrade run ${o.out}`);
+      console.log(`\nNext: review the generated prompts/assertions (and replace any remaining TODOs), then: toolgrade run ${o.out}`);
     } finally {
       await session.close();
     }
