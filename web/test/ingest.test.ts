@@ -159,6 +159,30 @@ describe("POST /api/v1/runs", () => {
     });
   });
 
+  it("stores suiteYaml when the CLI sends it, leaves it null when it doesn't", async () => {
+    const withYaml = await post(
+      {
+        report,
+        meta: { branch: "main" },
+        suiteYaml: "name: notes-suite\ntasks: []\n",
+      },
+      key,
+    );
+    expect(withYaml.status).toBe(201);
+    const withYamlId = ((await withYaml.json()) as { id: string }).id;
+
+    const withoutYaml = await post({ report, meta: { branch: "main" } }, key);
+    expect(withoutYaml.status).toBe(201);
+    const withoutYamlId = ((await withoutYaml.json()) as { id: string }).id;
+
+    const db = await getDb();
+    const stored = await db.select().from(runs);
+    expect(stored.find((r) => r.id === withYamlId)?.suiteYaml).toBe(
+      "name: notes-suite\ntasks: []\n",
+    );
+    expect(stored.find((r) => r.id === withoutYamlId)?.suiteYaml).toBeNull();
+  });
+
   it("rejects missing, unknown and revoked keys", async () => {
     expect((await post({ report })).status).toBe(401);
     expect((await post({ report }, generateApiKey().key)).status).toBe(401);

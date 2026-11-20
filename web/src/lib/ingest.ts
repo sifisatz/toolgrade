@@ -147,6 +147,8 @@ export const UploadSchema = z.object({
       commitMessage: Str(500).optional(),
     })
     .default({}),
+  /** The suite file's raw YAML text, exposed as the toolgrade://runs/{runId}/suite MCP resource. Optional - older CLIs never send it. */
+  suiteYaml: Str(1_000_000).optional(),
 });
 
 export type Upload = z.infer<typeof UploadSchema>;
@@ -190,5 +192,6 @@ export function toRunRow(
     commitMessage: upload.meta.commitMessage ?? null,
     billableUnits: billableUnits(r as unknown as RunReport),
     report: r as unknown as RunReport,
+    suiteYaml: upload.suiteYaml ?? null,
   };
 }

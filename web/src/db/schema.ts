@@ -204,6 +204,12 @@ export const runs = pgTable(
     /** See lib/usage.ts: one per (task, trial) where every arm that ran for it completed cleanly. */
     billableUnits: integer().notNull().default(0),
     report: jsonb().$type<RunReport>().notNull(),
+    /**
+     * The suite file's raw YAML text as the CLI ran it, when the uploading CLI sent it. Null for
+     * any run uploaded before this column existed - never backfilled, so callers must treat null
+     * as "not available" rather than inferring the suite from `report`.
+     */
+    suiteYaml: text("suite_yaml"),
     /** 1 = good, -1 = bad, null = not rated */
     annotationRating: integer("annotation_rating"),
     annotationNote: text("annotation_note"),
