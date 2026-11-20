@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseSuite } from "../src/config.js";
-import { detectClientConfigs, parseClientConfig, scaffoldSuiteFromImport } from "../src/import-config.js";
+import { detectClientConfigs, parseClientConfig, platformPaths, scaffoldSuiteFromImport } from "../src/import-config.js";
 
 let dir: string;
 let originalHome: string | undefined;
@@ -32,8 +32,11 @@ describe("detectClientConfigs", () => {
   });
 
   it("reports every known config location that exists on disk", async () => {
-    await mkdir(join(dir, "Library", "Application Support", "Claude"), { recursive: true });
-    await writeFile(join(dir, "Library", "Application Support", "Claude", "claude_desktop_config.json"), "{}");
+    // platformPaths() resolves the real per-OS claude-desktop location off process.env.HOME,
+    // which beforeEach already points at `dir` — so this matches whatever CI's actual platform is.
+    const desktopPath = platformPaths().claudeDesktop;
+    await mkdir(dirname(desktopPath), { recursive: true });
+    await writeFile(desktopPath, "{}");
     await writeFile(join(dir, ".mcp.json"), "{}");
     const found = await detectClientConfigs(dir);
     expect(found.map((f) => f.client)).toEqual(expect.arrayContaining(["claude-desktop", "claude-code"]));

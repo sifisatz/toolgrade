@@ -34,7 +34,8 @@ interface ClaudeUserConfigShape {
   projects?: Record<string, { mcpServers?: Record<string, RawMcpServer> }>;
 }
 
-function platformPaths(): { claudeDesktop: string } {
+/** Exported for tests: the current platform's real claude-desktop config path. */
+export function platformPaths(): { claudeDesktop: string } {
   const home = homedir();
   if (process.platform === "darwin") {
     return { claudeDesktop: join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json") };
