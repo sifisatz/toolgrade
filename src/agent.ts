@@ -56,6 +56,31 @@ export class AgentRunError extends Error {
   }
 }
 
+// Case-insensitive, substring match on purpose: this only needs to be directional, not exact -
+// providers phrase gateway rejections differently and we would rather miss a rare one than
+// misclassify a real model/tool bug as infra.
+const INFRA_REJECTION_PHRASES = /budget|rate limit|content filter|policy|quota/i;
+const CONNECTION_ERROR_PHRASES = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network|cannot reach/i;
+
+/**
+ * True when a thrown error looks like an infra/gateway rejection - a 429 rate limit, a 400 carrying
+ * a budget/policy/quota phrase, or a connection-level failure (ECONNRESET, ETIMEDOUT, ...) - rather
+ * than the model or tools under test actually failing. Deliberately conservative: anything that
+ * does not match one of these concrete signals stays a real failure instead of being quietly
+ * excluded from the pass rate.
+ */
+export function isInfraRejection(err: unknown): boolean {
+  const inner = err instanceof AgentRunError ? err.cause : err;
+  const status = (inner as { status?: unknown } | undefined)?.status;
+  const message = inner instanceof Error ? inner.message : String(inner);
+  if (typeof status === "number") {
+    if (status === 429) return true;
+    if (status === 400) return INFRA_REJECTION_PHRASES.test(message);
+    return false;
+  }
+  return CONNECTION_ERROR_PHRASES.test(message);
+}
+
 const NORMAL_STOPS = new Set(["end_turn", "stop_sequence"]);
 
 export function toAnthropicTools(tools: McpTool[]): Anthropic.Tool[] {

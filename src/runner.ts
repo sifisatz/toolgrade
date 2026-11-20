@@ -1,4 +1,4 @@
-import { AgentRunError, runAgent, toAnthropicTools, type Trajectory, type Usage } from "./agent.js";
+import { AgentRunError, isInfraRejection, runAgent, toAnthropicTools, type Trajectory, type Usage } from "./agent.js";
 import { evaluateAll, withTrialDir, type AssertionResult } from "./assertions.js";
 import { isOutcomeAssertion, isStdio, type AssertionSpec, type Suite, type TaskSpec } from "./config.js";
 import { fingerprintSurface, fingerprintTools, type ToolFingerprint } from "./fingerprint.js";
@@ -22,6 +22,13 @@ export interface TrialResult {
   trajectory?: Trajectory;
   /** Errored trials are excluded from pass rates and fail the no_errors gate check. */
   error?: string;
+  /**
+   * How this trial resolved. "infra" marks a trial whose error was an infra/gateway rejection
+   * (rate limit, budget/policy block, connection failure) rather than the model or tools under
+   * test failing - see `isInfraRejection` in agent.ts. Absent on reports written before this field
+   * existed; treated the same as "fail" by every reader here.
+   */
+  outcome?: "pass" | "fail" | "infra";
   usage: Usage;
   costUsd: number | null;
   /** Set for trials that belong to a variant arm (A/B description test). */
@@ -29,9 +36,12 @@ export interface TrialResult {
 }
 
 export interface ArmSummary {
-  /** Trial-level rate over graded (non-errored) trials. */
+  /** Trial-level rate over graded (non-errored, non-infra) trials. */
   rate: Rate;
+  /** Errored trials, excluding ones classified as infra rejections (see TrialResult.outcome). */
   errors: number;
+  /** Trials excluded as infra/gateway rejections - not counted as a pass or a fail. */
+  infra?: number;
   meanToolCalls: number;
   meanTurns: number;
   meanInputTokens: number;
@@ -201,9 +211,11 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
         },
       });
       const usage = { inputTokens: trajectory.inputTokens, outputTokens: trajectory.outputTokens };
+      const passed = trajectory.incomplete === undefined && assertions.every((a) => a.passed);
       return {
         ...base,
-        passed: trajectory.incomplete === undefined && assertions.every((a) => a.passed),
+        passed,
+        outcome: passed ? "pass" : "fail",
         assertions,
         trajectory,
         usage,
@@ -215,6 +227,7 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
       return {
         ...base,
         passed: false,
+        outcome: isInfraRejection(err) ? "infra" : "fail",
         assertions: [],
         trajectory,
         error: errorMessage(err),
@@ -253,9 +266,19 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
 
   const judgeCostUsd = judgeIn + judgeOut === 0 ? 0 : costs.cost(suite.judge.model, judgeIn, judgeOut);
   const totalCostUsd = sumCosts(results.map((r) => r.costUsd).concat(judgeCostUsd));
-  const errors = results.filter((r) => r.error).length;
+  const erroredResults = results.filter((r) => r.error);
+  const infraResults = results.filter((r) => r.outcome === "infra");
+  // Infra rejections (rate limit, budget/policy block, connection failure) are excluded from the
+  // no_errors gate: they are a real-world API hiccup, not evidence of a model/tool bug.
+  const errors = erroredResults.length - infraResults.length;
 
-  const checks: GateCheck[] = [{ name: "no_errors", passed: errors === 0, detail: `${errors} trial(s) errored` }];
+  const checks: GateCheck[] = [
+    {
+      name: "no_errors",
+      passed: errors === 0,
+      detail: `${errors} trial(s) errored${infraResults.length ? ` (${infraResults.length} of ${results.length} trials excluded as infra failures)` : ""}`,
+    },
+  ];
   if (suite.gate.min_pass_rate > 0) {
     checks.push({
       name: "min_pass_rate",
@@ -298,7 +321,7 @@ export async function runSuite(suite: Suite, opts: RunOptions): Promise<RunRepor
     },
     judgeCostUsd,
     totalCostUsd,
-    costIsLowerBound: errors > 0,
+    costIsLowerBound: erroredResults.length > 0,
     unpricedModels: [...costs.unpriced],
     gate: { passed: checks.every((c) => c.passed), checks },
     trials: results,
@@ -330,12 +353,18 @@ function selectTasks(tasks: TaskSpec[], filter?: string): TaskSpec[] {
 }
 
 function summarize(trials: TrialResult[]): ArmSummary {
+  // Infra rejections carry `error` too (like any other thrown-mid-trial failure), so they are
+  // already excluded from `graded` - and hence from the pass rate denominator - here. They just get
+  // their own count instead of being lumped into `errors`, so a gateway hiccup doesn't look like a
+  // tool/model bug in the report.
   const graded = trials.filter((t) => !t.error);
+  const infra = trials.filter((t) => t.outcome === "infra").length;
   const ok = graded.map((t) => t.trajectory).filter((t): t is Trajectory => t !== undefined);
   const mean = (f: (t: Trajectory) => number) => (ok.length === 0 ? 0 : ok.reduce((s, t) => s + f(t), 0) / ok.length);
   return {
     rate: rate(graded.filter((t) => t.passed).length, graded.length),
-    errors: trials.length - graded.length,
+    errors: trials.length - graded.length - infra,
+    infra,
     meanToolCalls: mean((t) => t.toolCalls.length),
     meanTurns: mean((t) => t.turns),
     meanInputTokens: mean((t) => t.inputTokens),
@@ -362,13 +391,17 @@ function sumCosts(values: Array<number | null>): number | null {
 /**
  * Config-level failures (bad key, unknown model, malformed request) repeat on every trial, so
  * they abort the run. A 400 after the first turn is different: the request grew with tool output
- * (e.g. prompt too long), which is a property of that trial, not of the configuration.
+ * (e.g. prompt too long), which is a property of that trial, not of the configuration. Likewise a
+ * 400/429 that is itself an infra rejection (budget/rate-limit/policy) is a property of that
+ * request, not of the suite's configuration, so it is scored per-trial (as "infra") instead of
+ * aborting the whole run.
  */
 function isFatal(err: unknown): boolean {
   const inner = err instanceof AgentRunError ? err.cause : err;
   const e = inner as { status?: unknown; fatal?: unknown; message?: unknown } | undefined;
   if (e?.fatal === true) return true;
   if (typeof e?.status !== "number") return false;
+  if (isInfraRejection(err)) return false;
   if (e.status === 400) {
     const grewFromTools = err instanceof AgentRunError && err.turn > 1;
     const tooLong = typeof e.message === "string" && /too long|context|maximum/i.test(e.message);

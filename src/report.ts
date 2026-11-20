@@ -11,7 +11,7 @@ const usd = (v: number | null) => (v === null ? "n/a" : `$${v.toFixed(v < 1 ? 4 
 // a cost or latency delta rather than a rate difference.
 const signedRelPct = (x: number) => `${x >= 0 ? "+" : ""}${Math.round(x * 100)}%`;
 const regressionCell = (d: RegressionDelta | null, label: string) => (d ? ` ${label} ${colorRegression(d.deltaPct, signedRelPct(d.deltaPct))}` : "");
-const rateCell = (a: ArmSummary) => `${pct(a.rate.rate)} (${a.rate.passes}/${a.rate.n})${a.errors ? ` +${a.errors} err` : ""}`;
+const rateCell = (a: ArmSummary) => `${pct(a.rate.rate)} (${a.rate.passes}/${a.rate.n})${a.errors ? ` +${a.errors} err` : ""}${a.infra ? ` +${a.infra} infra` : ""}`;
 const overallCell = (a: OverallArm) => `${pct(a.rate.rate)} over ${a.rate.n} tasks (${a.trials.passed}/${a.trials.graded} trials)`;
 const cost = (r: RunReport) => `${usd(r.totalCostUsd)}${r.costIsLowerBound ? " (lower bound: some trials errored)" : ""}`;
 
@@ -49,6 +49,10 @@ export function formatTerminal(r: RunReport): string {
   if (o.lift && o.liftTasks !== r.tasks.length) lines.push(pc.dim(`  lift over the ${o.liftTasks} task(s) graded in both arms`));
   lines.push(`${pc.bold("Cost             ")}  ${cost(r)} total (judge ${usd(r.judgeCostUsd)})`);
   if (r.unpricedModels.length) lines.push(pc.yellow(`No price for: ${r.unpricedModels.join(", ")} - add them under pricing: in the suite`));
+  const infraTotal = r.trials.filter((t) => t.outcome === "infra").length;
+  if (infraTotal) {
+    lines.push(pc.yellow(`${infraTotal} of ${r.trials.length} trial(s) excluded as infra failures (rate-limit/budget/policy rejections) - not counted toward pass rate`));
+  }
 
   const failures = r.trials.filter((t) => !t.passed && t.arm === "tools").slice(0, 8);
   if (failures.length) {
@@ -107,6 +111,8 @@ export function formatMarkdown(r: RunReport, cmp?: Comparison): string {
     }
   }
   out.push("");
+  const infraTotal = r.trials.filter((t) => t.outcome === "infra").length;
+  if (infraTotal) out.push(`> ${infraTotal} of ${r.trials.length} trial(s) excluded as infra failures (rate-limit/budget/policy rejections) - not counted toward pass rate.\n`);
   out.push(`Cost: ${cost(r)}. Gate: ${r.gate.checks.map((c) => `${c.name} ${c.passed ? "ok" : "FAILED"}`).join(", ")}.`);
   return out.join("\n");
 }
