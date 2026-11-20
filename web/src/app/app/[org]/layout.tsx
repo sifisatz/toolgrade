@@ -1,4 +1,4 @@
-import { BookOpen, LayoutGrid, Settings, Users } from "lucide-react";
+import { BookOpen, LayoutGrid, Network, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -181,6 +181,12 @@ async function ProjectNav({ params }: { params: Promise<{ org: string }> }) {
                   <SidebarMenuSubItem>
                     <NavLink sub href={`${base}/${p.slug}/model-matrix`}>
                       Model matrix
+                    </NavLink>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <NavLink sub href={`${base}/${p.slug}/tool-graph`}>
+                      <Network />
+                      Tool graph
                     </NavLink>
                   </SidebarMenuSubItem>
                   <SidebarMenuSubItem>
