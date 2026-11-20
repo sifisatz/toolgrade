@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 - 2026-11-20
+
+Additive release - no breaking changes to the suite YAML schema, CLI flags, or library exports.
+
+### Added
+- `toolgrade run <suite> --upload` now also sends the suite file's raw YAML text alongside the report. It's stored read-only and exposed as an MCP resource (`toolgrade://runs/{runId}/suite`) on the hosted platform's MCP server, next to a new `toolgrade://runs/{runId}/report` resource exposing the full run report. Both are additive and optional: uploads that don't send the suite text, and runs predating this feature, keep working exactly as before.
+- The hosted platform (`web/`) now also exposes a read-only MCP server at `/api/mcp` with 6 tools (`get_latest_run`, `get_lift_trend`, `get_failing_assertions`, `compare_runs`, `get_tool_usage`, `list_runs`) scoped to the calling API key's project, so an agent can query your run history directly instead of only reading uploaded JSON reports by hand.
+
+### Fixed
+- Applied Socket's vetted override for a transitive dependency (`es-define-property`, several layers deep under the unused server half of `@modelcontextprotocol/sdk`). Everything else Socket flags in that tree is either expected behavior of trusted upstream packages (ajv's JIT schema compilation, the Anthropic SDK's own network calls) or a code path ToolGrade's own source never imports or executes (the SDK's bundled agent-toolset and CLI binary) - verified directly, not assumed.
+
 ## 0.2.0 - 2026-11-20
 
 Additive release - no breaking changes to the suite YAML schema, CLI flags, or library exports. All existing suites and CI configs keep working unchanged.
