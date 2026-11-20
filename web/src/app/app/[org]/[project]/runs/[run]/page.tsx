@@ -18,6 +18,7 @@ import {
   Lift,
   SignificanceBadge,
 } from "@/components/status";
+import { ToolConfusionCard } from "@/components/tool-confusion-card";
 import { ToolCoverageCard } from "@/components/tool-coverage-card";
 import { TrialSheet } from "@/components/trial-sheet";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
 import { getPreviousRunId, getProject, getRun } from "@/lib/data";
 import { dateTime, pct, shortSha, signedPct, usd } from "@/lib/format";
 import { requireUser } from "@/lib/session";
+import { toolConfusionPairs } from "@/lib/tool-confusion";
 import { toolSurfaceBreakdown } from "@/lib/tool-surface";
 import { forClient } from "@/lib/trim";
 
@@ -72,6 +74,7 @@ async function RunDetail({
   const o = r.overall;
   const base = `/app/${org.slug}/${project.slug}`;
   const toolSurface = toolSurfaceBreakdown(r);
+  const confusionPairs = toolConfusionPairs(r);
 
   return (
     <>
@@ -297,6 +300,10 @@ async function RunDetail({
           used={toolSurface.used}
           neverCalled={toolSurface.neverCalled}
         />
+
+        {confusionPairs.length > 0 && (
+          <ToolConfusionCard pairs={confusionPairs} />
+        )}
       </div>
     </>
   );
