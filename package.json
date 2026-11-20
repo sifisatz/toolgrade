@@ -6,7 +6,7 @@
   "license": "MIT",
   "packageManager": "pnpm@12.6.0",
   "bin": {
-    "toolgrade": "./dist/cli.js"
+    "toolgrade": "dist/cli.js"
   },
   "exports": {
     ".": {
