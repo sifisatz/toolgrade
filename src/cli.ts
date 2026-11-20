@@ -5,9 +5,10 @@ import { Command, InvalidArgumentError } from "commander";
 import { compareRuns } from "./compare.js";
 import { loadSuite } from "./config.js";
 import { fingerprintSurface } from "./fingerprint.js";
+import { writeOtelExport } from "./export/otel.js";
 import { detectClientConfigs, parseClientConfig, scaffoldSuiteFromImport, type ClientName } from "./import-config.js";
 import { generateSuite, type InitServer } from "./init.js";
-import { lintToolDescriptions, lintTools, lintToolSafety } from "./lint.js";
+import { lintSpecCompliance, lintToolDescriptions, lintTools, lintToolSafety } from "./lint.js";
 import { openSession } from "./mcp.js";
 import { AnthropicProvider } from "./providers/anthropic.js";
 import { OpenAICompatibleProvider } from "./providers/openai.js";
@@ -40,6 +41,7 @@ program
   .option("--no-baseline", "skip the no-tool baseline arm")
   .option("-o, --out-dir <dir>", "where run reports are written", ".toolgrade/runs")
   .option("--markdown <file>", "also write a Markdown summary (for PR comments)")
+  .option("--otel-export <file>", "also write the run as OTel GenAI spans, OTLP/JSON wire format (for Jaeger/Langfuse/Phoenix)")
   .option("--compare <report>", "compare against a previous run report; regression fails the run")
   .option("--baseline <url>", "compare against the most recent matching run on a ToolGrade platform instead of --compare (key from TOOLGRADE_API_KEY)")
   .option("--baseline-branch <branch>", "only match a baseline from this branch (default: the PR base branch in GitHub Actions, otherwise any branch)")
@@ -95,6 +97,7 @@ program
     const cmp = previous ? compareRuns(previous, report) : undefined;
     if (cmp) console.log(`\n${formatComparison(cmp)}`);
     if (o.markdown) await writeFile(o.markdown, formatMarkdown(report, cmp));
+    if (o.otelExport) await writeOtelExport(report, o.otelExport);
     console.log(`\nReport: ${file}`);
     if (o.upload) {
       const uploaded = await uploadReport(o.upload, apiKey!, report, await detectGitMeta());
@@ -134,6 +137,13 @@ program
           const tag = f.severity === "danger" ? "danger" : f.severity === "warn" ? "warn  " : "info  ";
           console.log(`  ${tag} ${f.toolName}: ${f.message}`);
         }
+      }
+
+      // Spec compliance score
+      const { results: complianceResults, compliancePercent } = lintSpecCompliance(session.tools);
+      console.log(`\nMCP spec compliance: ${compliancePercent}%`);
+      for (const r of complianceResults) {
+        if (!r.compliant) console.log(`  ${r.toolName}: missing ${r.missing.join(", ")}`);
       }
 
       console.log(`\nTool surface fingerprint: ${fingerprintSurface(session.tools)}`);

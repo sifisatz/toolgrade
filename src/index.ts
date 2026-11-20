@@ -2,9 +2,11 @@ export { runAgent, type Trajectory, type ToolCallRecord } from "./agent.js";
 export { compareRuns, type Comparison } from "./compare.js";
 export { loadSuite, parseSuite, type AssertionSpec, type Suite, type TaskSpec, type TaskVariantSpec, type ToolOverrideSpec } from "./config.js";
 export {
+  lintSpecCompliance,
   lintToolDescriptions,
   lintTools,
   lintToolSafety,
+  type ComplianceResult,
   type DescriptionQualityResult,
   type LintIssue,
   type SafetyFinding,

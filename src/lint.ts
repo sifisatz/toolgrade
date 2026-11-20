@@ -189,6 +189,44 @@ export function lintToolSafety(tools: McpTool[]): SafetyFinding[] {
   return findings;
 }
 
+// ---------------------------------------------------------------------------
+// MCP annotation / spec compliance scoring
+// ---------------------------------------------------------------------------
+
+export interface ComplianceResult {
+  toolName: string;
+  compliant: boolean;
+  missing: string[];
+}
+
+/**
+ * Checks each tool against fields the current MCP tool spec recommends (not requires):
+ * a non-empty description, documented input parameters, and at least one behavior annotation.
+ */
+export function lintSpecCompliance(tools: McpTool[]): { results: ComplianceResult[]; compliancePercent: number } {
+  const results: ComplianceResult[] = tools.map((tool) => {
+    const missing: string[] = [];
+
+    if (!tool.description?.trim()) missing.push("description");
+
+    const props = (tool.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
+    const paramNames = Object.keys(props);
+    if (paramNames.length > 0) {
+      const documented = paramNames.filter((p) => props[p]?.description?.trim());
+      if (documented.length < paramNames.length) {
+        missing.push(`parameter descriptions (${documented.length}/${paramNames.length} documented)`);
+      }
+    }
+
+    if (!hasAnyAnnotation(tool.annotations)) missing.push("annotations");
+
+    return { toolName: tool.name, compliant: missing.length === 0, missing };
+  });
+
+  const compliancePercent = results.length === 0 ? 100 : Math.round((results.filter((r) => r.compliant).length / results.length) * 100);
+  return { results, compliancePercent };
+}
+
 export interface LintIssue {
   tool: string;
   level: "error" | "warn";
